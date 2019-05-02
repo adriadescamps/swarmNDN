@@ -7,6 +7,8 @@ from simpy.core import BoundClass
 from simpy.resources import base
 from heapq import heappush, heappop
 
+random.seed(2)
+
 
 class Packet(object):
     """ A very simple class that represents a packet.
@@ -25,7 +27,8 @@ class Packet(object):
         name : string
             name of the content requested
     """
-    def __init__(self, time, size, name, lifetime, ant_id=None, data=None):
+    def __init__(self, creator, time, size, name, lifetime, ant_id=None, data=None):
+        self.creator = creator
         self.time = time
         self.size = size
         self.name = name  # The name of the content
@@ -36,15 +39,16 @@ class Packet(object):
         self.default_time = lifetime
 
     def __repr__(self):
-        return "name: {}, antID{}, time: {}, size: {}, mode:{}, data: {}".\
-            format(self.name, self.antId, self.time, self.size, self.mode, self.data)
+        return "name: {}, antID: {}, time: {}, life: {}, size: {}, mode:{}, data: {}".\
+            format(self.name, self.antId, self.time, self.lifetime, self.size, self.mode, self.data)
 
     def add_data(self, data):
         self.data = data
 
 
 class Consumer(object):
-    def __init__(self, env):
+    def __init__(self, env, name):
+        self.name = name
         self.env = env
         self.antId = random.randrange(9999999)
         self.interface = None
@@ -52,6 +56,7 @@ class Consumer(object):
         self.names = simpy.Store(env)  # The queue of pkts in the internal process
         self.action = env.process(self.run())  # starts the run() method as a SimPy process
         self.action2 = env.process(self.listen())  # starts the run() method as a SimPy process
+        self.receivedPackets = list()
 
     def run(self):
         # TODO It will generate packets in a specified interval
@@ -62,8 +67,9 @@ class Consumer(object):
             # First Scenario - We send a single request to a specific content name
             name = (yield self.names.get())
             for i in range(10):
-                # yield self.env.timeout(functools.partial(random.expovariate, 0.9)())  # generate packets at random speed
-                pkt = Packet(self.env.now, random.randint(5, 10), name, 20, self.antId)
+                yield self.env.timeout(functools.partial(random.expovariate, 0.9)())  # generate packets at random speed
+                pkt = Packet(self.name, self.env.now, random.randint(5, 10), name, 20, self.antId)
+                print(pkt)
                 self.antId += 1
                 self.interface.packets.put(pkt)
 
@@ -75,10 +81,12 @@ class Consumer(object):
             pkt = item[1][1]
             # Might be Interest packets going backwards than need to be moved forward again
             if pkt.mode == 0:
-                print("...Back to Consumer...")
+                #print("...Back to Consumer...")
                 iface.packets.put(pkt)
             else:
-                print("Consumer received back: " + str(pkt))
+                pkt.time = self.env.now - pkt.time
+                self.receivedPackets.append(pkt)
+                #print("\nConsumer received back: " + str(pkt))
             # TODO Might use the packet for stadistics and then erase it from memory
 
     def add_interface(self, iface):
@@ -110,7 +118,7 @@ class Producer(object):
             pkt = item[1][1]
             # It receive an Interest packet and creates the Data packet for it
             if pkt.mode == 0:
-                print("Producer received: " + str(pkt))
+                #print("Producer received: " + str(pkt))
                 if pkt.name in self.data:
                     if pkt.antId is None:
                         pkt.add_data(self.data[pkt.name])
@@ -144,13 +152,13 @@ class Node(object):
             self.evaporate()
             iface = item[0]
             pkt = item[1][1]
-            #print("Node " + self.name + " received: " + str(pkt))
 
             if pkt.mode == 0 and pkt.antId is not None:
                 # Here ant packets process
                 # TODO Check CS for data objects
-                entry = PATobject(pkt.antId, pkt.name, iface, self.timeout)
-                self.PAT.table[pkt.antId] = entry  # Add the Interest packet
+                if pkt.antId not in self.PAT.table: # Just save the first interface the packet come from, avoiding further loops
+                    entry = PATobject(pkt.antId, pkt.name, iface, self.timeout)
+                    self.PAT.table[pkt.antId] = entry  # Add the Interest packet
                 out_iface = self.forward_engine(pkt)  # The ForwardEngine decides outgoing interface
                 out_iface.packets.put(pkt)  # The packet is sent to the out iface
             elif pkt.mode == 0 and pkt.antId is None:
@@ -160,7 +168,7 @@ class Node(object):
                     self.PIT.table[pkt.name].incoming[iface] = self.timeout
                 else:
                     # Create entry in the PIT table for the Interest packet
-                    self.PIT.table[pkt.name] = PITobject(pkt.name, iface,self.timeout)
+                    self.PIT.table[pkt.name] = PITobject(pkt.name, iface, self.timeout)
                     out_iface = self.forward_engine(pkt)  # The ForwardEngine decides outgoing interface
                     out_iface.packets.put(pkt)  # The packet is sent to the out iface
             elif pkt.mode == 1 and pkt.antId is not None:
@@ -176,9 +184,9 @@ class Node(object):
                         self.FIB.table[pkt.name] = entry
 
                     # Remove entry in PAT
-                    entry = self.PAT.table.pop(pkt.antId)
+                    entry2 = self.PAT.table.pop(pkt.antId)
                     # Take incoming iface from PAT
-                    in_iface = entry.interface
+                    in_iface = entry2.interface
                     # Send Data packet back to the incoming interface
                     in_iface.packets.put(pkt)
 
@@ -205,6 +213,8 @@ class Node(object):
                 # Drop packet
                 print("Wrong packet\n")
 
+            #print("Node " + self.name + "\n Table: " + str(self.PAT.table))
+
     def add_interface(self, iface):
         if isinstance(iface, list):
             for each in iface:
@@ -227,7 +237,7 @@ class Node(object):
             total = 0
             for i in entry.values():
                 total += i ** pwr
-            rand = random.uniform(1, total)
+            rand = random.randint(0, int(total))
             for iface, pheromone in entry.items():
                 if rand - (pheromone ** pwr) < 0:
                     return iface
@@ -262,14 +272,18 @@ class Interface(object):
         while True:
             pkt = yield self.packets.get()
             if pkt.lifetime > 1:
-                print("Iface: " + str(self.env.now))
+                #print("Iface: " + str(self.env.now))
                 time = pkt.size * 8.0 / self.rate
                 yield self.env.timeout(time)  # Packet transmission time
-                print("Iface: " + str(time) + " - " + str(self.env.now))
+                #print("Iface: " + str(time) + " - " + str(self.env.now))
                 pkt.lifetime -= 1
                 self.out_iface.put([self.out_iface, pkt])
             else:
-                print("Packet died: {}, {}" + str(pkt))
+                print("\n----------------------\nPacket died: {}, {}" + str(pkt))
+
+    def __repr__(self):
+        return "Interface: {}".\
+            format(self.name)
 
 
 class FIB(object):
@@ -299,6 +313,10 @@ class FIBobject(object):
         for iface in interfaces:  # Creates a pair for each interface in the node with the basic amount of pheromones
             self.outgoings[iface] = 1
         self.outgoings[in_iface] += pheromone  # Increases the pheromones level for the desired iface
+
+    def __repr__(self):
+        return "\nName: {}, Pheromones: {}".\
+            format(self.name, self.outgoings)
 
 
 class PITobject(object):
