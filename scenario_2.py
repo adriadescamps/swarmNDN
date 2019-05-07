@@ -1,5 +1,8 @@
 import simpy
-from components1 import Consumer, Producer, Node, Interface
+from components1 import Consumer, Producer, Node, Interface, NodeMonitor
+import pandas as pd
+import matplotlib.pyplot as plt
+
 """
     This scenario is a developed version of scenario 1 where the topology is 
                           (3-5) Node 2 (6-9)
@@ -11,7 +14,7 @@ from components1 import Consumer, Producer, Node, Interface
 if __name__ == '__main__':
     env = simpy.Environment()  # Create the SimPy environment
     # Create Consumer
-    consumer = Consumer(env)
+    consumer = Consumer(env, "C1")
     # Create Producer
     names = ["video", "audio"]
     producer = Producer(env, names)
@@ -46,17 +49,33 @@ if __name__ == '__main__':
     node3.add_interface([iface7, iface8])
     node4.add_interface([iface9, iface10, iface11])
     producer.add_interface(iface12)
+    # Create node monitor
+    monitor = NodeMonitor(env, [node1, node2, node3, node4])
     # Add request for content
     consumer.request("video")
     consumer.request("audio")
     # Run it
-    env.run(20000)
+    env.run(50)
     print(str(node1.PAT.table))
     print(str(node2.PAT.table))
     print(str(node3.PAT.table))
     print(str(node4.PAT.table))
-    print(str(node1.FIB.table))
-    print(str(node2.FIB.table))
-    print(str(node3.FIB.table))
-    print(str(node4.FIB.table))
+    # print(str(node1.FIB.table))
+    # print(str(node2.FIB.table))
+    # print(str(node3.FIB.table))
+    # print(str(node4.FIB.table))
+    out_pat = pd.DataFrame(monitor.pat, index=monitor.times)
+
+    plot = out_pat.plot.line(title="PAT utilization")
+    out_fib = []
+    for name, node in monitor.fib.items():
+        out_fib.append(pd.DataFrame(node, index=monitor.times))
+    i = 220
+    fig = plt.figure()
+    fig.suptitle("Pheromones")
+    for entry, name in zip(out_fib, monitor.fib.keys()):
+        i += 1
+        a = entry.plot.line(title=name, ax=fig.add_subplot(i), grid=True)
+        a.set(xlabel="Time", ylabel="Pheromone amount")
+    plt.show()
 

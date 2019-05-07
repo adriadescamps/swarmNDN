@@ -7,6 +7,11 @@ from simpy.core import BoundClass
 from simpy.resources import base
 from heapq import heappush, heappop
 
+"""
+    In this library the data is transmitted. That means using Content Store to use in-network storage.
+    Now the ants need to check whether the data is in the CS, and is so, they need to create a Data packet as a response.
+"""
+
 random.seed(2)
 
 
@@ -39,8 +44,8 @@ class Packet(object):
         self.default_time = lifetime
 
     def __repr__(self):
-        return "name: {}, antID: {}, time: {}, life: {}, size: {}, mode:{}, data: {}".\
-            format(self.name, self.antId, self.time, self.lifetime, self.size, self.mode, self.data)
+        return "name: {}, antID: {}, time: {}, life: {}, size: {}, mode:{}, creator: {}, data: {}".\
+            format(self.name, self.antId, self.time, self.lifetime, self.size, self.mode, self.creator,  self.data)
 
     def add_data(self, data):
         self.data = data
@@ -57,6 +62,7 @@ class Consumer(object):
         self.action = env.process(self.run())  # starts the run() method as a SimPy process
         self.action2 = env.process(self.listen())  # starts the run() method as a SimPy process
         self.receivedPackets = list()
+        self.waitingPackets = list()
 
     def run(self):
         # TODO It will generate packets in a specified interval
@@ -69,12 +75,15 @@ class Consumer(object):
             for i in range(10):
                 yield self.env.timeout(functools.partial(random.expovariate, 0.9)())  # generate packets at random speed
                 pkt = Packet(self.name, self.env.now, random.randint(5, 10), name, 20, self.antId)
-                print(pkt)
+                # print(pkt)
                 self.antId += 1
                 self.interface.packets.put(pkt)
+            # yield self.env.timeout(functools.partial(random.expovariate, 0.9)())  # generate packets at random speed
+            data = Packet(self.name, self.env.now, random.randint(15, 20), name, 20)
+            self.interface.packets.put(data)
 
     def listen(self):
-        # TODO It will listen for packets in the store to process
+        # It will listen for packets in the store to process
         while True:
             item = (yield self.store.get())
             iface = item[0]
@@ -86,7 +95,7 @@ class Consumer(object):
             else:
                 pkt.time = self.env.now - pkt.time
                 self.receivedPackets.append(pkt)
-                #print("\nConsumer received back: " + str(pkt))
+                print("\nConsumer received back: " + str(pkt))
             # TODO Might use the packet for stadistics and then erase it from memory
 
     def add_interface(self, iface):
@@ -117,6 +126,7 @@ class Producer(object):
             iface = item[0]
             pkt = item[1][1]
             # It receive an Interest packet and creates the Data packet for it
+            print("Producer received this: " + str(pkt))
             if pkt.mode == 0:
                 #print("Producer received: " + str(pkt))
                 if pkt.name in self.data:
@@ -140,39 +150,52 @@ class Node(object):
         self.store = simpy.Store(env)  # The queue of pkts in the node
         self.name = name
         self.interfaces = list()
-        self.timeout = 30  # TODO Assign it properly  # It is the time to live in the table
+        self.timeout = 50  # TODO Assign it properly  # It is the time to live in the table
         self.PAT = PAT()
         self.PIT = PIT()
         self.FIB = FIB()
+        self.CS = CS()
         self.action = env.process(self.run())  # starts the run() method as a SimPy process
-        self.action2 = env.process(self.evaporate())  # starts the run() method as a SimPy process
-        self.dist = functools.partial(random.expovariate, 1.0)
 
     def run(self):
         while True:
             item = (yield self.store.get())
-            #self.evaporate()
+            self.evaporate()
             iface = item[0]
             pkt = item[1][1]
 
             if pkt.mode == 0 and pkt.antId is not None:
                 # Here ant packets process
                 # TODO Check CS for data objects
-                if pkt.antId not in self.PAT.table: # Just save the first interface the packet come from, avoiding further loops
-                    entry = PATobject(pkt.antId, pkt.name, iface, self.timeout)
-                    self.PAT.table[pkt.antId] = entry  # Add the Interest packet
-                out_iface = self.forward_engine(pkt)  # The ForwardEngine decides outgoing interface
-                out_iface.packets.put(pkt)  # The packet is sent to the out iface
+                # If the data is in the CS create Data packet and return it
+                if pkt.name in self.CS.table:
+                    pkt.lifetime = pkt.default_time
+                    pkt.mode = 1  # Convert the Interest packet in Data packet
+                    self.CS.table[pkt.name].lifetime = self.timeout
+                    iface.packets.put(pkt)
+                else:
+                    if pkt.antId not in self.PAT.table: # Just save the first interface the packet come from, avoiding further loops
+                        entry = PATobject(pkt.antId, pkt.name, iface, self.timeout)
+                        self.PAT.table[pkt.antId] = entry  # Add the Interest packet
+                    out_iface = self.forward_engine(pkt)  # The ForwardEngine decides outgoing interface
+                    out_iface.packets.put(pkt)  # The packet is sent to the out iface
             elif pkt.mode == 0 and pkt.antId is None:
                 # Here content packets are processed
                 # TODO Check CS for data objects
-                if pkt.name in self.PIT.table:
-                    self.PIT.table[pkt.name].incoming[iface] = self.timeout
+                if pkt.name in self.CS.table:
+                    pkt.add_data(self.CS.table[pkt.name].data)  # Add data to the packet
+                    pkt.lifetime = pkt.default_time
+                    pkt.mode = 1  # Convert the Interest packet in Data packet
+                    self.CS.table[pkt.name].lifetime = self.timeout
+                    iface.packets.put(pkt)
                 else:
-                    # Create entry in the PIT table for the Interest packet
-                    self.PIT.table[pkt.name] = PITobject(pkt.name, iface, self.timeout)
-                    out_iface = self.forward_engine(pkt)  # The ForwardEngine decides outgoing interface
-                    out_iface.packets.put(pkt)  # The packet is sent to the out iface
+                    if pkt.name in self.PIT.table:
+                        self.PIT.table[pkt.name].incoming[iface] = self.timeout
+                    else:
+                        # Create entry in the PIT table for the Interest packet
+                        self.PIT.table[pkt.name] = PITobject(pkt.name, iface, self.timeout)
+                        out_iface = self.forward_engine(pkt)  # The ForwardEngine decides outgoing interface
+                        out_iface.packets.put(pkt)  # The packet is sent to the out iface
             elif pkt.mode == 1 and pkt.antId is not None:
                 if pkt.antId in self.PAT.table:
                     # Create entry in FIB OR UPDATE IT
@@ -204,6 +227,11 @@ class Node(object):
                     self.FIB.table[pkt.name] = entry
 
                 # TODO Cache Data if strategy says so
+                if pkt.name in self.CS.table:
+                    self.CS.table[pkt.name].lifetime = self.timeout
+                else:
+                    cache = CSobject(pkt.name, pkt.data, self.timeout)
+                    self.CS.table[pkt.name] = cache
 
                 # Remove entry in PIT
                 # Take incoming iface from PIT
@@ -234,7 +262,10 @@ class Node(object):
         # The heuristic function deciding which outgoing interface is going to be chosen
         # Different function for ants and for content, the power strength the decision when content is routed
         if pkt.name in self.FIB.table:
-            pwr = pkt.mode + 1
+            if pkt.antId is not None:
+                pwr = 1
+            else:
+                pwr = 2
             entry = self.FIB.table[pkt.name].outgoings
             total = 0
             for i in entry.values():
@@ -248,57 +279,10 @@ class Node(object):
         return random.choices(self.interfaces)[0]
 
     def evaporate(self):
-        while True:
-            yield self.env.timeout(self.dist())
-            # Evaporate pheromones
-            for fib_object in self.FIB.table.values():
-                for iface, pheromone in fib_object.outgoings.items():
-                    if pheromone > 1 + self.reduce_const:
-                        self.FIB.table[fib_object.name].outgoings[iface] -= self.reduce_const
-            # Reduce or delete PAT-PIT entries
-            ids = []
-            for ant_id, pat_object in self.PAT.table.items():
-                if pat_object.lifetime < 2:
-                    ids.append(ant_id)
-                else:
-                    pat_object.lifetime -= 1
-            # Not applicable for data yet
-            for ant_id in ids:
-                self.PAT.table.pop(ant_id)
-                print("PAT TABLE: Emptied packet "+str(ant_id))
-
-
-class NodeMonitor(object):
-    def __init__(self, env, nodes):
-        self.env = env
-        self.nodes = nodes
-        self.pat = []
-        self.fib = dict()
-        for node in self.nodes:
-            self.fib[node.name] = []
-        self.times = []
-        self.dist = functools.partial(random.expovariate, 1.0)
-        self.action = env.process(self.run())
-
-    def run(self):
-        while True:
-            yield self.env.timeout(self.dist())
-            # Save time
-            self.times.append(self.env.now)
-            #fibs = {}
-            pats = {}
-            for node in self.nodes:
-                # TODO Save PAT info
-                pats[node.name] = len(node.PAT.table)
-                # TODO Save FIB info
-                llista = {}
-                for entry in node.FIB.table.values():
-                    total = 0.0
-                    for pher in entry.outgoings.values():
-                        total += pher
-                    llista[entry.name] = total
-                self.fib[node.name].append(llista)
-            self.pat.append(pats)
+        for fib_object in self.FIB.table.values():
+            for iface, pheromone in fib_object.outgoings.items():
+                if pheromone > 1 + self.reduce_const:
+                    self.FIB.table[fib_object.name].outgoings[iface] -= self.reduce_const
 
 
 class Interface(object):
@@ -342,7 +326,7 @@ class FIB(object):
 
 class PIT(object):
     def __init__(self):
-        self.table = list()  # Dict with name as a key, values incoming interface
+        self.table = dict()  # Dict with name as a key, values incoming interface
 
 
 class PAT(object):
@@ -352,7 +336,7 @@ class PAT(object):
 
 class CS(object):
     def __init__(self, ):
-        self.table = list()  # list of CS objects
+        self.table = dict()  # list of CS objects
 
 
 class FIBobject(object):
@@ -383,6 +367,7 @@ class PATobject(object):
 
 
 class CSobject(object):
-    def __init__(self, name, data):
+    def __init__(self, name, data, lifetime):
         self.name = name
         self.data = data
+        self.lifetime = lifetime
