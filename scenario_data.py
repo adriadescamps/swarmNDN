@@ -1,5 +1,7 @@
 import simpy
-from components_data import Consumer, Producer, Node, Interface
+from components_data import Consumer, Producer, Node, Interface, NodeMonitor
+import pandas as pd
+import matplotlib.pyplot as plt
 """
     This scenario is a developed version of scenario 1 where the topology is 
                             (4-6) Node 2 (7-11) -  Node 4  (12-13)
@@ -60,13 +62,15 @@ if __name__ == '__main__':
     node4.add_interface([iface11, iface12])
     node5.add_interface([iface13, iface14, iface15])
     producer.add_interface(iface16)
+    # Create node monitor
+    monitor = NodeMonitor(env, [node1, node2, node3, node4, node5])
     # Add request for content
     consumer1.request("video")
     consumer1.request("audio")
     consumer2.request("video")
     consumer2.request("audio")
     # Run it
-    env.run(20000)
+    env.run(250)
     print(str(node1.PAT.table))
     print(str(node2.PAT.table))
     print(str(node3.PAT.table))
@@ -81,3 +85,20 @@ if __name__ == '__main__':
         print(pkt)
     for pkt in consumer2.receivedPackets:
         print(pkt)
+
+    # out_pat = pd.DataFrame(monitor.pat, index=monitor.times)
+    # out_pit = pd.DataFrame(monitor.pit, index=monitor.times)
+    #
+    # plot = out_pat.plot.line(title="PAT utilization")
+    # plot2 = out_pit.plot.line(title="PIT utilization")
+    # out_fib = []
+    # for name, node in monitor.fib.items():
+    #     out_fib.append(pd.DataFrame(node, index=monitor.times))
+    # i = 320
+    # fig = plt.figure()
+    # fig.suptitle("Pheromones")
+    # for entry, name in zip(out_fib, monitor.fib.keys()):
+    #     i += 1
+    #     a = entry.plot.line(title=name, ax=fig.add_subplot(i), grid=True)
+    #     a.set(xlabel="Time", ylabel="Pheromone amount")
+    # plt.show()

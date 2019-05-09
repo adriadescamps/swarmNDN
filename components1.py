@@ -265,7 +265,7 @@ class Node(object):
             # Not applicable for data yet
             for ant_id in ids:
                 self.PAT.table.pop(ant_id)
-                print("PAT TABLE: Emptied packet "+str(ant_id))
+                print("PAT " + str(self.name) + " TABLE: Emptied packet "+str(ant_id))
 
 
 class NodeMonitor(object):

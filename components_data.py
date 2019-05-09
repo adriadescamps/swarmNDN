@@ -2,10 +2,6 @@ import simpy
 import random
 import string
 import functools
-import copy
-from simpy.core import BoundClass
-from simpy.resources import base
-from heapq import heappush, heappop
 
 """
     In this library the data is transmitted. That means using Content Store to use in-network storage.
@@ -90,12 +86,12 @@ class Consumer(object):
             pkt = item[1][1]
             # Might be Interest packets going backwards than need to be moved forward again
             if pkt.mode == 0:
-                #print("...Back to Consumer...")
+                # print("...Back to Consumer...")
                 iface.packets.put(pkt)
             else:
                 pkt.time = self.env.now - pkt.time
                 self.receivedPackets.append(pkt)
-                print("\nConsumer received back: " + str(pkt))
+                # print("\nConsumer received back: " + str(pkt))
             # TODO Might use the packet for stadistics and then erase it from memory
 
     def add_interface(self, iface):
@@ -126,9 +122,9 @@ class Producer(object):
             iface = item[0]
             pkt = item[1][1]
             # It receive an Interest packet and creates the Data packet for it
-            print("Producer received this: " + str(pkt))
+            # print("Producer received this: " + str(pkt))
             if pkt.mode == 0:
-                #print("Producer received: " + str(pkt))
+                # print("Producer received: " + str(pkt))
                 if pkt.name in self.data:
                     if pkt.antId is None:
                         pkt.add_data(self.data[pkt.name])
@@ -166,7 +162,7 @@ class Node(object):
 
             if pkt.mode == 0 and pkt.antId is not None:
                 # Here ant packets process
-                # TODO Check CS for data objects
+                # Check CS for data objects
                 # If the data is in the CS create Data packet and return it
                 if pkt.name in self.CS.table:
                     pkt.lifetime = pkt.default_time
@@ -181,7 +177,7 @@ class Node(object):
                     out_iface.packets.put(pkt)  # The packet is sent to the out iface
             elif pkt.mode == 0 and pkt.antId is None:
                 # Here content packets are processed
-                # TODO Check CS for data objects
+                # TODO CS for data objects
                 if pkt.name in self.CS.table:
                     pkt.add_data(self.CS.table[pkt.name].data)  # Add data to the packet
                     pkt.lifetime = pkt.default_time
@@ -243,7 +239,7 @@ class Node(object):
                 # Drop packet
                 print("Wrong packet\n")
 
-            #print("Node " + self.name + "\n Table: " + str(self.PAT.table))
+            # print("Node " + self.name + "\n Table: " + str(self.PAT.table))
 
     def add_interface(self, iface):
         if isinstance(iface, list):
@@ -285,6 +281,47 @@ class Node(object):
                     self.FIB.table[fib_object.name].outgoings[iface] -= self.reduce_const
 
 
+class NodeMonitor(object):
+    def __init__(self, env, nodes):
+        self.env = env
+        self.nodes = nodes
+        self.pat = []
+        self.pit = []
+        self.fib = dict()
+        for node in self.nodes:
+            self.fib[node.name] = []
+        self.times = []
+        self.dist = functools.partial(random.expovariate, 1.0)
+        self.action = env.process(self.run())
+
+    def run(self):
+        while True:
+            yield self.env.timeout(self.dist())
+            # Save time
+            self.times.append(self.env.now)
+            # fibs = {}
+            pats = {}
+            pits = {}
+            for node in self.nodes:
+                # Save PAT info
+                pats[node.name] = len(node.PAT.table)
+                # Save PIT info
+                tot_pit = 0
+                for entry in node.PIT.table.values():
+                    tot_pit += len(entry.incoming)
+                pits[node.name] = tot_pit
+                # Save FIB info
+                llista = {}
+                for entry in node.FIB.table.values():
+                    total = 0.0
+                    for pher in entry.outgoings.values():
+                        total += pher
+                    llista[entry.name] = total
+                self.fib[node.name].append(llista)
+            self.pat.append(pats)
+            self.pit.append(pits)
+
+
 class Interface(object):
     def __init__(self, env, name, store, iface=None, rate=1000.0):
         self.env = env
@@ -305,10 +342,10 @@ class Interface(object):
         while True:
             pkt = yield self.packets.get()
             if pkt.lifetime > 1:
-                #print("Iface: " + str(self.env.now))
+                # print("Iface: " + str(self.env.now))
                 time = pkt.size * 8.0 / self.rate
                 yield self.env.timeout(time)  # Packet transmission time
-                #print("Iface: " + str(time) + " - " + str(self.env.now))
+                # print("Iface: " + str(time) + " - " + str(self.env.now))
                 pkt.lifetime -= 1
                 self.out_iface.put([self.out_iface, pkt])
             else:
