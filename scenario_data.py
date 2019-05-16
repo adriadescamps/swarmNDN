@@ -70,35 +70,64 @@ if __name__ == '__main__':
     consumer2.request("video")
     consumer2.request("audio")
     # Run it
-    env.run(250)
-    print(str(node1.PAT.table))
-    print(str(node2.PAT.table))
-    print(str(node3.PAT.table))
-    print(str(node4.PAT.table))
-    print(str(node5.PAT.table))
-    print(str(node1.FIB.table))
-    print(str(node2.FIB.table))
-    print(str(node3.FIB.table))
-    print(str(node4.FIB.table))
-    print(str(node5.FIB.table))
-    for pkt in consumer1.receivedPackets:
-        print(pkt)
-    for pkt in consumer2.receivedPackets:
-        print(pkt)
+    env.run(65)
+    # print(str(node1.PAT.table))
+    # print(str(node2.PAT.table))
+    # print(str(node3.PAT.table))
+    # print(str(node4.PAT.table))
+    # print(str(node5.PAT.table))
+    # print(str(node1.FIB.table))
+    # print(str(node2.FIB.table))
+    # print(str(node3.FIB.table))
+    # print(str(node4.FIB.table))
+    # print(str(node5.FIB.table))
+    # for pkt in consumer1.receivedPackets:
+    #     print(pkt)
+    # for pkt in consumer2.receivedPackets:
+    #     print(pkt)
 
-    # out_pat = pd.DataFrame(monitor.pat, index=monitor.times)
-    # out_pit = pd.DataFrame(monitor.pit, index=monitor.times)
-    #
-    # plot = out_pat.plot.line(title="PAT utilization")
-    # plot2 = out_pit.plot.line(title="PIT utilization")
-    # out_fib = []
-    # for name, node in monitor.fib.items():
-    #     out_fib.append(pd.DataFrame(node, index=monitor.times))
-    # i = 320
-    # fig = plt.figure()
-    # fig.suptitle("Pheromones")
-    # for entry, name in zip(out_fib, monitor.fib.keys()):
-    #     i += 1
-    #     a = entry.plot.line(title=name, ax=fig.add_subplot(i), grid=True)
-    #     a.set(xlabel="Time", ylabel="Pheromone amount")
-    # plt.show()
+    # Visualization
+    con1 = []
+    con2 = []
+    for pkt1, pkt2 in zip(consumer1.receivedPackets, consumer2.receivedPackets):
+        con1.append(pkt1.time)
+        con2.append(pkt2.time)
+    out_consumer = pd.DataFrame({consumer1.name: con1, consumer2.name: con2}, index=["video", "audio"])
+    out_pat = pd.DataFrame(monitor.pat, index=monitor.times)
+    out_pit = pd.DataFrame(monitor.pit, index=monitor.times)
+    out_fib = pd.DataFrame(monitor.fib, index=monitor.times)
+
+    fig_pat = plt.figure()
+    plot = out_pat.plot.line(title="PAT utilization", ax=fig_pat.add_subplot(111))
+
+    fig_pit = plt.figure()
+    plot2 = out_pit.plot.line(title="PIT utilization", ax=fig_pit.add_subplot(111))
+
+    fig_con = plt.figure()
+    plot3 = out_consumer.plot.bar(title="Data retrieving time", ax=fig_con.add_subplot(111))
+    plot3.set(ylabel="Time")
+
+    i = 510
+    fig_v = plt.figure(figsize=[8, 12])
+    fig_a = plt.figure(figsize=[8, 12])
+    fig_v.suptitle("Video")
+    fig_a.suptitle("Audio")
+    for name, entry in monitor.fib.items():
+        i += 1
+        data = pd.DataFrame(entry, index=monitor.times)
+        video = data['video'].to_frame()
+        video = video.dropna()
+        video = video['video'].apply(pd.Series)
+        video_p = video.plot.line(title=name, ax=fig_v.add_subplot(i), grid=True)
+        video_p.set(xlabel="Time", ylabel="Pheromone amount")
+        audio = data['audio'].to_frame()
+        audio = audio.dropna()
+        audio = audio['audio'].apply(pd.Series)
+        audio_p = audio.plot.line(title=name, ax=fig_a.add_subplot(i), grid=True)
+        audio_p.set(xlabel="Time", ylabel="Pheromone amount")
+    plt.show()
+    fig_v.savefig('scenario3_video.png')
+    fig_a.savefig('scenario3_audio.png')
+    fig_pat.savefig('scenario3_pat.png')
+    fig_pit.savefig('scenario3_pit.png')
+    fig_con.savefig('scenario3_data.png')

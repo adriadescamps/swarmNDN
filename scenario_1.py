@@ -1,5 +1,5 @@
 import simpy
-from components1 import Consumer, Producer, Node, Interface
+from components_ant import Consumer, Producer, Node, Interface
 """
     This scenario is a simple Consumer-Node-Producer where the consumer requests one content
     Only the ants are enabled

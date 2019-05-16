@@ -1,5 +1,7 @@
 import simpy
-from components1 import Consumer, Producer, Node, Interface
+from components_ant import Consumer, Producer, Node, Interface, NodeMonitor
+import pandas as pd
+import matplotlib.pyplot as plt
 """
     This scenario is a developed version of scenario 1 where the topology is 
                             (4-6) Node 2 (7-11) -  Node 4  (12-13)
@@ -60,13 +62,15 @@ if __name__ == '__main__':
     node4.add_interface([iface11, iface12])
     node5.add_interface([iface13, iface14, iface15])
     producer.add_interface(iface16)
+    # Create node monitor
+    monitor = NodeMonitor(env, [node1, node2, node3, node4, node5])
     # Add request for content
     consumer1.request("video")
     consumer1.request("audio")
     consumer2.request("video")
     consumer2.request("audio")
     # Run it
-    env.run(20000)
+    env.run(100)
     print(str(node1.PAT.table))
     print(str(node2.PAT.table))
     print(str(node3.PAT.table))
@@ -77,9 +81,33 @@ if __name__ == '__main__':
     print(str(node3.FIB.table))
     print(str(node4.FIB.table))
     print(str(node5.FIB.table))
-    for pkt in consumer1.receivedPackets:
-        print(pkt)
-    print("\n")
-    for pkt in consumer2.receivedPackets:
-        print(pkt)
 
+    # Visualization
+    out_pat = pd.DataFrame(monitor.pat, index=monitor.times)
+    out_fib = pd.DataFrame(monitor.fib, index=monitor.times)
+
+    fig_pat = plt.figure()
+    plot = out_pat.plot.line(title="PAT utilization", ax=fig_pat.add_subplot(111))
+
+    i = 510
+    fig_v = plt.figure(figsize=[8, 12])
+    fig_a = plt.figure(figsize=[8, 12])
+    fig_v.suptitle("Video")
+    fig_a.suptitle("Audio")
+    for name, entry in monitor.fib.items():
+        i += 1
+        data = pd.DataFrame(entry, index=monitor.times)
+        video = data['video'].to_frame()
+        video = video.dropna()
+        video = video['video'].apply(pd.Series)
+        video_p = video.plot.line(title=name, ax=fig_v.add_subplot(i), grid=True)
+        video_p.set(xlabel="Time", ylabel="Pheromone amount")
+        audio = data['audio'].to_frame()
+        audio = audio.dropna()
+        audio = audio['audio'].apply(pd.Series)
+        audio_p = audio.plot.line(title=name, ax=fig_a.add_subplot(i), grid=True)
+        audio_p.set(xlabel="Time", ylabel="Pheromone amount")
+    plt.show()
+    fig_v.savefig('scenario2_video.png')
+    fig_a.savefig('scenario2_audio.png')
+    fig_pat.savefig('scenario2_pat.png')

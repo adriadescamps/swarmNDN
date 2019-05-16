@@ -2,10 +2,6 @@ import simpy
 import random
 import string
 import functools
-import copy
-from simpy.core import BoundClass
-from simpy.resources import base
-from heapq import heappush, heappop
 
 random.seed(2)
 
@@ -59,7 +55,6 @@ class Consumer(object):
         self.receivedPackets = list()
 
     def run(self):
-        # TODO It will generate packets in a specified interval
         # It will send 10 ants to form a path and
         # once the first one arrived back in a form of Data packet it will send the Data request
 
@@ -68,25 +63,25 @@ class Consumer(object):
             name = (yield self.names.get())
             for i in range(10):
                 yield self.env.timeout(functools.partial(random.expovariate, 0.9)())  # generate packets at random speed
-                pkt = Packet(self.name, self.env.now, random.randint(5, 10), name, 20, self.antId)
-                print(pkt)
+                pkt = Packet(self.name, self.env.now, random.randint(80, 100), name, 20, self.antId)
+                # print(pkt)
                 self.antId += 1
                 self.interface.packets.put(pkt)
 
     def listen(self):
-        # TODO It will listen for packets in the store to process
+        # It will listen for packets in the store to process
         while True:
             item = (yield self.store.get())
             iface = item[0]
             pkt = item[1][1]
             # Might be Interest packets going backwards than need to be moved forward again
             if pkt.mode == 0:
-                #print("...Back to Consumer...")
+                # print("...Back to Consumer...")
                 iface.packets.put(pkt)
             else:
                 pkt.time = self.env.now - pkt.time
                 self.receivedPackets.append(pkt)
-                #print("\nConsumer received back: " + str(pkt))
+                # print("\nConsumer received back: " + str(pkt))
             # TODO Might use the packet for stadistics and then erase it from memory
 
     def add_interface(self, iface):
@@ -118,7 +113,7 @@ class Producer(object):
             pkt = item[1][1]
             # It receive an Interest packet and creates the Data packet for it
             if pkt.mode == 0:
-                #print("Producer received: " + str(pkt))
+                # print("Producer received: " + str(pkt))
                 if pkt.name in self.data:
                     if pkt.antId is None:
                         pkt.add_data(self.data[pkt.name])
@@ -151,13 +146,11 @@ class Node(object):
     def run(self):
         while True:
             item = (yield self.store.get())
-            #self.evaporate()
             iface = item[0]
             pkt = item[1][1]
 
             if pkt.mode == 0 and pkt.antId is not None:
                 # Here ant packets process
-                # TODO Check CS for data objects
                 if pkt.antId not in self.PAT.table: # Just save the first interface the packet come from, avoiding further loops
                     entry = PATobject(pkt.antId, pkt.name, iface, self.timeout)
                     self.PAT.table[pkt.antId] = entry  # Add the Interest packet
@@ -165,7 +158,6 @@ class Node(object):
                 out_iface.packets.put(pkt)  # The packet is sent to the out iface
             elif pkt.mode == 0 and pkt.antId is None:
                 # Here content packets are processed
-                # TODO Check CS for data objects
                 if pkt.name in self.PIT.table:
                     self.PIT.table[pkt.name].incoming[iface] = self.timeout
                 else:
@@ -203,8 +195,6 @@ class Node(object):
                     entry = FIBobject(pkt.name, iface, self.interfaces, pheromone)
                     self.FIB.table[pkt.name] = entry
 
-                # TODO Cache Data if strategy says so
-
                 # Remove entry in PIT
                 # Take incoming iface from PIT
                 # Send Data packet back to the incoming interface
@@ -215,7 +205,7 @@ class Node(object):
                 # Drop packet
                 print("Wrong packet\n")
 
-            #print("Node " + self.name + "\n Table: " + str(self.PAT.table))
+            # print("Node " + self.name + "\n Table: " + str(self.PAT.table))
 
     def add_interface(self, iface):
         if isinstance(iface, list):
@@ -265,7 +255,7 @@ class Node(object):
             # Not applicable for data yet
             for ant_id in ids:
                 self.PAT.table.pop(ant_id)
-                print("PAT " + str(self.name) + " TABLE: Emptied packet "+str(ant_id))
+                # print("PAT " + str(self.name) + " TABLE: Emptied packet "+str(ant_id))
 
 
 class NodeMonitor(object):
@@ -285,18 +275,17 @@ class NodeMonitor(object):
             yield self.env.timeout(self.dist())
             # Save time
             self.times.append(self.env.now)
-            #fibs = {}
             pats = {}
             for node in self.nodes:
-                # TODO Save PAT info
+                # Save PAT info
                 pats[node.name] = len(node.PAT.table)
-                # TODO Save FIB info
+                # Save FIB info
                 llista = {}
                 for entry in node.FIB.table.values():
-                    total = 0.0
-                    for pher in entry.outgoings.values():
-                        total += pher
-                    llista[entry.name] = total
+                    dict_iface = dict()
+                    for iface, pher in entry.outgoings.items():
+                        dict_iface[iface.name] = pher
+                    llista[entry.name] = dict_iface
                 self.fib[node.name].append(llista)
             self.pat.append(pats)
 
@@ -321,10 +310,10 @@ class Interface(object):
         while True:
             pkt = yield self.packets.get()
             if pkt.lifetime > 1:
-                #print("Iface: " + str(self.env.now))
+                # print("Iface: " + str(self.env.now))
                 time = pkt.size * 8.0 / self.rate
                 yield self.env.timeout(time)  # Packet transmission time
-                #print("Iface: " + str(time) + " - " + str(self.env.now))
+                # print("Iface: " + str(time) + " - " + str(self.env.now))
                 pkt.lifetime -= 1
                 self.out_iface.put([self.out_iface, pkt])
             else:

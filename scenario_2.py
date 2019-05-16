@@ -1,5 +1,5 @@
 import simpy
-from components1 import Consumer, Producer, Node, Interface, NodeMonitor
+from components_ant import Consumer, Producer, Node, Interface, NodeMonitor
 import pandas as pd
 import matplotlib.pyplot as plt
 
