@@ -126,7 +126,7 @@ def simulate(llavor):
 
     # Save events information to a file
     data_f = pd.DataFrame(data)
-    data_f.to_csv('data/run' + str(sys.argv[1]) + '_scenario4_data.csv')
+    data_f.to_csv('data/scenario4_data.csv')
 
     # # Save CS information to a file
     # cs_f = pd.DataFrame(monitor_n.cs, index=monitor_n.times)
@@ -168,7 +168,7 @@ def visualize(pit, pat, fib, times):
     for node, ifaces in fib.items():
         i += 1
         f_fib = pd.DataFrame(ifaces, index=times)
-        f_fib.to_csv("run" + str(sys.argv[1]) + "_scenario4_fib_" + str(node) + ".csv")
+        f_fib.to_csv("scenario4_fib_" + str(node) + ".csv")
         j = 320
         fig_fib = plt.figure(figsize=[10, 12])
         fig_fib.suptitle(node)
@@ -268,4 +268,4 @@ if __name__ == '__main__':
             #          if name in monitor[k].fib[node][iface][l]}
             #         for l in range(len(monitor[0].times))]
 
-    print("a")
+    visualize(pit, pat, fib, monitor[0].times)

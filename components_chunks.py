@@ -8,8 +8,6 @@ import functools
     Now the ants need to check whether the data is in the CS, and if so, they need to create a Data packet as a response.
 """
 
-random.seed(2)
-
 
 class Packet(object):
     """ A very simple class that represents a packet.
@@ -49,9 +47,10 @@ class Packet(object):
 
 
 class Consumer(object):
-    def __init__(self, env, name):
+    def __init__(self, env, name, delay):
         self.name = name
         self.env = env
+        self.delay = delay
         self.id = random.randrange(9999999)
         self.interface = None
         self.store = simpy.Store(env)  # The queue of pkts in the internal process
@@ -63,16 +62,16 @@ class Consumer(object):
         # TODO It will generate packets in a specified interval
         # It will send 10 ants to form a path and
         # once the first one arrived back in a form of Data packet it will send the Data request
-        yield self.env.timeout(random.uniform(0.0, 20.0))
+        yield self.env.timeout(self.delay)  # Wait to start requesting packets
         for i in range(10):
-            yield self.env.timeout(functools.partial(random.expovariate, 0.5)())  # generate packets at random speed
+            yield self.env.timeout(0.5)  # generate packets at fix speed
             pkt = Packet(self.name, self.env.now, random.randint(50, 100), name, 20, self.id, True)
             self.id += 1
             self.interface.packets.put(pkt)
-        # yield self.env.timeout(functools.partial(random.expovariate, 0.9)())
+        yield self.env.timeout(0.5)
         data = Packet(self.name, self.env.now, random.randint(1500, 2000), name, 20, self.id)
         self.id += 1
-        print("Generated: " + str(data))
+        # print("Generated: " + str(data))
         self.interface.packets.put(data)
 
     def run(self):
@@ -126,8 +125,9 @@ class Producer(object):
     def create_data(self, name):
         chunks = dict()
         # Create 10 chunks of data from a specific content name
-        for i in range(10):
-            chunk_name = str(name) + "/" + str(i+1)
+        chunks_names = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10']
+        for i in chunks_names:
+            chunk_name = str(name) + "/" + i
             # Create some random data of size 10 bits
             chunks[chunk_name] = ''.join(random.choices(string.ascii_uppercase + string.digits, k=10))
         self.data[name] = chunks
@@ -218,10 +218,10 @@ class Node(object):
                 else:
                     if pkt.name in self.PIT.table:
                         if pkt.id in self.PIT.table[pkt.name].ids:
-                            out_iface = iface
-                            while out_iface is iface:
-                                out_iface = self.forward_engine(pkt)  # The ForwardEngine decides outgoing interface
-                            out_iface.packets.put(pkt)  # The packet is sent to the out iface
+                            out_iface = [iface, list(self.PIT.table[pkt.name].incoming.keys())]
+                            while iface in out_iface:
+                                iface = self.forward_engine(pkt)  # The ForwardEngine decides outgoing interface
+                            iface.packets.put(pkt)  # The packet is sent to the out iface
                         else:
                             self.PIT.table[pkt.name].incoming[iface] = self.timeout
                     else:
@@ -349,10 +349,17 @@ class Node(object):
         while True:
             yield self.env.timeout(self.dist())
             # Evaporate pheromones
+            fibs = []
             for fib_object in self.FIB.table.values():
+                delete = True
                 for iface, pheromone in fib_object.outgoings.items():
                     if pheromone > 1 + self.reduce_const:
                         self.FIB.table[fib_object.name].outgoings[iface] -= self.reduce_const
+                        delete = False
+                if delete:
+                    fibs.append(fib_object.name)
+            for fib_ob in fibs:
+                self.FIB.table.pop(fib_ob)
             # Reduce or delete PAT-PIT entries
             ids = []
             for ant_id, pat_object in self.PAT.table.items():
@@ -369,7 +376,7 @@ class Node(object):
                 for iface, time in pit_object.incoming.items():
                     if time < 2:
                         pits.append(iface)
-                        print(str(self.env.now) + str(iface.name) + "was deleted from " + str(name) + " from " + str(self.name))
+                        # print(str(self.env.now) + str(iface.name) + "was deleted from " + str(name) + " from " + str(self.name))
                     else:
                         pit_object.incoming[iface] -= 1
                 for iface in pits:
@@ -378,7 +385,7 @@ class Node(object):
                         llista.append(name)
             for name in llista:
                 self.PIT.table.pop(name)
-                print(str(self.env.now) + str(name) + "was deleted from " + str(self.name))
+                # print(str(self.env.now) + str(name) + "was deleted from " + str(self.name))
 
 
 class NodeMonitor(object):
@@ -387,18 +394,16 @@ class NodeMonitor(object):
         self.nodes = nodes
         self.pat = []
         self.pit = []
-        self.pit_size = []
         self.cs = []
         self.fib = dict()
         for node in self.nodes:
             self.fib[node.name] = {interface.name: [] for interface in node.interfaces}
         self.times = []
-        self.dist = functools.partial(random.expovariate, 1)
         self.action = env.process(self.run())
 
     def run(self):
         while True:
-            yield self.env.timeout(self.dist())
+            yield self.env.timeout(0.5)
             # Save time
             self.times.append(self.env.now)
             # fibs = {}
@@ -430,7 +435,7 @@ class NodeMonitor(object):
 
                     self.fib[node.name][iface.name].append(dict_cont)
             self.pat.append(pats)
-            self.pit_size.append(pits)
+            self.pit.append(pits)
             self.cs.append(css)
 
 
@@ -460,8 +465,8 @@ class Interface(object):
                 # print("Iface: " + str(time) + " - " + str(self.env.now))
                 pkt.lifetime -= 1
                 self.out_iface.put([self.out_iface, pkt])
-            else:
-                print("\n----------------------\nPacket died: {}, {}" + str(pkt))
+            # else:
+                # print("\n----------------------\nPacket died: {}, {}" + str(pkt))
 
     def __repr__(self):
         return "Interface: {}".\
