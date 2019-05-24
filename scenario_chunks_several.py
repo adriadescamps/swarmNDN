@@ -8,6 +8,7 @@ from numpy import std
 from components_chunks import Consumer, Producer, Node, Interface, NodeMonitor
 import pandas as pd
 import matplotlib.pyplot as plt
+from scipy.stats import sem, t
 
 """
     This scenario is a developed version of scenario 1 where the topology is 
@@ -271,6 +272,14 @@ if __name__ == '__main__':
                 for name in monitor[0].packets[0].keys()}
                for j in range(len(monitor[0].packets))]
 
+    confidence = 0.95
+    n = len(monitor[0].packets[0].keys())
+    pkt_cnf = [{name: sem([monitor[i].packets[j][name]
+                          for i in range(simulacions)
+                          if name in monitor[i].packets[j]]) * t.ppf((1 + confidence) / 2, n - 1)
+                for name in monitor[0].packets[0].keys()}
+               for j in range(len(monitor[0].packets))]
+
     # pkt_max = [{name: max(monitor[i].packets[j][name]
     #                       for i in range(simulacions)
     #                       if name in monitor[i].packets[j]) / simulacions
@@ -303,4 +312,4 @@ if __name__ == '__main__':
     #             cont.append(dicc)
     #         fib[node][iface] = cont
 
-    visualize(pit, pat, pkt_a, pkt_std, monitor[0].times)
+    visualize(pit, pat, pkt_a, pkt_cnf, monitor[0].times)
