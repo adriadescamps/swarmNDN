@@ -38,13 +38,13 @@ def trace(env, callback):
     env.step = get_wrapper(env.step, callback)
 
 
-def monitor_f(data, t, prio, eid, event):
+def monitor(data, t, prio, eid, event):
     if not issubclass(type(event), simpy.events.Timeout):
         data.append((t, eid, type(event), event.value))
 
 
-def simulate(llavor):
-    random.seed(llavor)
+if __name__ == '__main__':
+    random.seed(2)
     env = simpy.Environment()  # Create the SimPy environment
     # Create Consumer
     consumer1 = Consumer(env, "C1", 1)
@@ -102,7 +102,7 @@ def simulate(llavor):
     env.process(consumer1.request("audio"))
 
     data = []
-    monitor = functools.partial(monitor_f, data)
+    monitor = functools.partial(monitor, data)
     trace(env, monitor)
 
     # Run it
@@ -132,23 +132,17 @@ def simulate(llavor):
     # cs_f = pd.DataFrame(monitor_n.cs, index=monitor_n.times)
     # cs_f.to_csv('data/run' + str(sys.argv[1]) + '_scenario4_cs.csv')
 
-    return monitor_n
-
-
-def visualize(pit, pat, fib, times):
-
-
     # # Visualization
     # con1 = dict()
     # con2 = dict()
     # for pkt1 in consumer1.receivedPackets:
-    #     con1[pkt1.name] = pkt1.time
+    #     con1[pkt1['name']] = pkt1['time']
     # for pkt2 in consumer2.receivedPackets:
-    #     con2[pkt2.name] = pkt2.time
-    # out_consumer = pd.DataFrame({consumer1.name: con1, consumer2.name: con2})
-    out_pat = pd.DataFrame(pat, index=times)
-    out_pit = pd.DataFrame(pit, index=times)
-    out_fib = pd.DataFrame(fib, index=times)
+    #     con2[pkt2['name']] = pkt2['time']
+    out_consumer = pd.DataFrame({consumer1.name: consumer1.receivedPackets, consumer2.name: consumer2.receivedPackets})
+    out_pat = pd.DataFrame(monitor_n.pat, index=monitor_n.times)
+    out_pit = pd.DataFrame(monitor_n.pit, index=monitor_n.times)
+    out_fib = pd.DataFrame(monitor_n.fib, index=monitor_n.times)
 
     out_pat.to_csv('data/scenario4_pat.csv')
     out_pit.to_csv('data/scenario4_pit.csv')
@@ -160,14 +154,14 @@ def visualize(pit, pat, fib, times):
     fig_pit = plt.figure()
     plot2 = out_pit.plot.line(title="PIT entries", ax=fig_pit.add_subplot(111))
 
-    # fig_con = plt.figure()
-    # plot3 = out_consumer.plot.bar(title="Data retrieving time", ax=fig_con.add_subplot(111))
-    # plot3.set(ylabel="Time")
+    fig_con = plt.figure()
+    plot3 = out_consumer.plot.bar(title="Data retrieving time", ax=fig_con.add_subplot(111))
+    plot3.set(ylabel="Time")
 
     i = 0
-    for node, ifaces in fib.items():
+    for node, ifaces in monitor_n.fib.items():
         i += 1
-        f_fib = pd.DataFrame(ifaces, index=times)
+        f_fib = pd.DataFrame(ifaces, index=monitor_n.times)
         f_fib.to_csv("run" + str(sys.argv[1]) + "_scenario4_fib_" + str(node) + ".csv")
         j = 320
         fig_fib = plt.figure(figsize=[10, 12])
@@ -188,11 +182,11 @@ def visualize(pit, pat, fib, times):
                     if "video" in name:
                         dicc[name] = value
                 video.append(dicc)
-            iface_fib = pd.DataFrame(audio, index=times)
+            iface_fib = pd.DataFrame(audio, index=monitor_n.times)
             plot_fib = iface_fib.plot.line(title=iface, ax=fig_fib.add_subplot(j))
             plot_fib.legend(bbox_to_anchor=(0.05, 0), loc="lower left", bbox_transform=fig_fib.transFigure, ncol=3)
             j += 1
-            iface_fib = pd.DataFrame(video, index=times)
+            iface_fib = pd.DataFrame(video, index=monitor_n.times)
             plot_fib = iface_fib.plot.line(title=iface, ax=fig_fib.add_subplot(j))
             plot_fib.legend(bbox_to_anchor=(0.95, 0), loc="lower right", bbox_transform=fig_fib.transFigure, ncol=3)
         fig_fib.savefig('scenario4_fib_' + str(node) + '.png')
@@ -201,71 +195,4 @@ def visualize(pit, pat, fib, times):
 
     fig_pat.savefig("scenario4_pat.png")
     fig_pit.savefig("scenario4_pit.png")
-    #fig_con.savefig("scenario4_data.png")
-
-
-if __name__ == '__main__':
-    simulacions = 2
-    monitor = []
-    for j in range(simulacions):
-        monitor.append(simulate(j))
-    # for k in range(len(monitor[0].pat)):
-    #     for l in range(len(monitor)):
-    #         mean_dict = {}
-    #         for key in monitor[0].pat[0].keys():
-    #             # {key: sum(val) / len(monitor[k].pat[0] for a, val in monitor[l].pat[k]}
-    #             n = 0
-    #             t_pat = monitor[k].pat
-    #             for a, b in t_pat[0].items():
-    #                 print(a + b)
-
-    # / len(monitor[0].pat[0])
-    nodes = list(monitor[0].pat[0].keys())
-
-    # pat = {}
-    # for node in nodes:
-    #     pat[node] = sum(monitor[l].pat[58][node] for l in range(simulacions)) / len(nodes)
-
-    # pat = []
-    # for k in range(len(monitor[0].pat)):
-    #     pat.append({node: sum(monitor[l].pat[k][node]
-    #                           for l in range(simulacions)) / len(nodes)
-    #                 for node in nodes})
-
-    pat = [{node: sum(monitor[l].pat[k][node]
-                      for l in range(simulacions)) / simulacions
-            for node in nodes}
-           for k in range(len(monitor[0].pat))]
-
-    pit = [{node: sum(monitor[l].pit[k][node]
-                      for l in range(simulacions)) / simulacions
-            for node in nodes}
-           for k in range(len(monitor[0].pit))]
-
-    fib = dict()
-    for node in monitor[0].nodes:
-        fib[node.name] = {interface.name: [] for interface in node.interfaces}
-
-    for node in fib.keys():
-        for iface in fib[node].keys():
-            cont = []
-            for l in range(len(monitor[0].times)):
-                dicc = {}
-                for k in range(simulacions):
-                    for name, pheromone in monitor[k].fib[node][iface][l].items():
-                        if name in dicc:
-                            dicc[name] += pheromone
-                        else:
-                            dicc[name] = pheromone
-                for name, pher in dicc.items():
-                    dicc[name] = pher / simulacions
-                cont.append(dicc)
-            fib[node][iface] = cont
-
-            # cont = [{name: sum(pheromone)
-            #          for k in range(simulacions)
-            #          for name, pheromone in monitor[k].fib[node][iface][l].items()
-            #          if name in monitor[k].fib[node][iface][l]}
-            #         for l in range(len(monitor[0].times))]
-
-    print("a")
+    fig_con.savefig("scenario4_data.png")

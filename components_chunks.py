@@ -55,7 +55,7 @@ class Consumer(object):
         self.interface = None
         self.store = simpy.Store(env)  # The queue of pkts in the internal process
         self.action = env.process(self.run())  # starts the run() method as a SimPy process
-        self.receivedPackets = list()
+        self.receivedPackets = dict()
         self.waitingPackets = list()
 
     def request(self, name):
@@ -90,7 +90,7 @@ class Consumer(object):
                 if pkt.data is not None:
                     if isinstance(pkt.data, list):
                         self.env.process(self.request_chunks(pkt.data))
-                    self.receivedPackets.append(pkt)
+                    self.receivedPackets[pkt.name] = pkt.time
             # TODO Might use the packet for stadistics and then erase it from memory
 
     def add_interface(self, iface):
@@ -396,6 +396,7 @@ class NodeMonitor(object):
         self.pit = []
         self.cs = []
         self.fib = dict()
+        self.packets = []
         for node in self.nodes:
             self.fib[node.name] = {interface.name: [] for interface in node.interfaces}
         self.times = []
