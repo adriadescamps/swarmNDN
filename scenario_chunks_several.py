@@ -1,6 +1,7 @@
 import functools
 import random
 import sys
+import time
 
 import simpy
 from numpy import std
@@ -109,12 +110,12 @@ def simulate(llavor):
     env.process(consumer1.request("video"))
     env.process(consumer1.request("audio"))
 
-    data = []
-    monitor = functools.partial(monitor_f, data)
-    trace(env, monitor)
+    # data = []
+    # monitor = functools.partial(monitor_f, data)
+    # trace(env, monitor)
 
     # Run it
-    env.run(100)
+    env.run(300)
     # print(str(node1.PIT.table))
     # print(str(node2.PIT.table))
     # print(str(node3.PIT.table))
@@ -133,8 +134,8 @@ def simulate(llavor):
     #     print(pkt)
 
     # Save events information to a file
-    data_f = pd.DataFrame(data)
-    data_f.to_csv('data/scenario5_data.csv')
+    # data_f = pd.DataFrame(data)
+    # data_f.to_csv('data/scenario5_data.csv')
 
     # # Save CS information to a file
     # cs_f = pd.DataFrame(monitor_n.cs, index=monitor_n.times)
@@ -157,11 +158,11 @@ def visualize(pit, pat, pkt, pkt_err, times):
     # means = out_consumer.mean()
     # errors = out_consumer.std()
     out_pat = pd.DataFrame(pat, index=times)
-    out_pit = pd.DataFrame(pit, index=times)
+    # out_pit = pd.DataFrame(pit, index=times)
     # out_fib = pd.DataFrame(fib, index=times)
 
-    out_pat.to_csv('data/scenario5_pat.csv')
-    out_pit.to_csv('data/scenario5_pit.csv')
+    out_pat.to_csv('data/scenario5_30pat_' + str(time.time())[0:8] + '.csv')
+    # out_pit.to_csv('data/scenario5_pit.csv')
     # out_fib.to_csv('data/scenario5_fib.csv')
 
     fig_pat = plt.figure()
@@ -169,10 +170,10 @@ def visualize(pit, pat, pkt, pkt_err, times):
     plot.set(ylabel="Max Entries")
     plot.set(xlabel="Time")
 
-    fig_pit = plt.figure()
-    plot2 = out_pit.plot.line(title="PIT entries", ax=fig_pit.add_subplot(111))
+    # fig_pit = plt.figure()
+    # plot2 = out_pit.plot.line(title="PIT entries", ax=fig_pit.add_subplot(111))
 
-    fig_con = plt.figure()
+    fig_con = plt.figure(figsize=(10, 7))
     plot3 = out_consumer.plot.bar(yerr=err_consumer, title="Data retrieving time", ax=fig_con.add_subplot(111))
     plot3.set(ylabel="Time")
 
@@ -211,9 +212,9 @@ def visualize(pit, pat, pkt, pkt_err, times):
 
     plt.show()
 
-    fig_pat.savefig("scenario5_pat.png")
-    fig_pit.savefig("scenario5_pit.png")
-    fig_con.savefig("scenario5_data.png")
+    fig_pat.savefig("data/scenario5_30pat_" + str(time.time())[0:8] + ".png")
+    # fig_pit.savefig("data/scenario5_30pit_" + str(time.time())[0:8] + ".png")
+    fig_con.savefig("data/scenario5_30times_" + str(time.time())[0:8] + ".png")
 
 
 if __name__ == '__main__':

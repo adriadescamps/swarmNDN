@@ -99,7 +99,7 @@ class Consumer(object):
     def request_chunks(self, data):
         # It will listen for packets in the store to process
         for name, i in zip(data, range(len(data))):
-            for j in range(5):
+            for j in range(30):
                 yield self.env.timeout(0.2)
                 pkt = Packet(self.name, self.env.now, random.randint(50, 100), name, 20, self.id, True)
                 self.id += 1
@@ -125,7 +125,9 @@ class Producer(object):
     def create_data(self, name):
         chunks = dict()
         # Create 10 chunks of data from a specific content name
-        chunks_names = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10']
+        chunks_names = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10',
+                        '11', '12', '13', '14', '15', '16', '17', '18', '19', '20',
+                        '21', '22', '23', '24', '25', '26', '27', '28', '29', '30']
         for i in chunks_names:
             chunk_name = str(name) + "/" + i
             # Create some random data of size 10 bits
@@ -309,7 +311,7 @@ class Node(object):
     # matching @name.
     def domain_iface(self, name):
         fib_ob = dict()
-        # Initialize list with node's.py interfaces
+        # Initialize list with node's interfaces
         for iface in self.interfaces:
             fib_ob[iface] = 0.0
         # Update list with pheromone amounts

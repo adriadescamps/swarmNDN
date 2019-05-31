@@ -157,7 +157,7 @@ if __name__ == '__main__':
 
     # Save events information to a file
     data_f = pd.DataFrame(data)
-    data_f.to_csv('data/scenario6_data.csv')
+    data_f.to_csv('data/scenario6_data_' + str(time.time())[0:8] + '.csv')
 
     # # Visualization
     con_times = {}
@@ -181,7 +181,7 @@ if __name__ == '__main__':
     plot.set(ylabel="Max Entries")
     plot.set(xlabel="Time")
 
-    fig_pat.savefig("data/scenario6_pat" + str(time.time())[0:6] + ".png")
-    fig_con.savefig("data/scenario6_times" + str(time.time())[0:6] + ".png")
+    fig_pat.savefig("data/scenario6_pat_" + str(time.time())[0:8] + ".png")
+    fig_con.savefig("data/scenario6_times_" + str(time.time())[0:8] + ".png")
     plt.show()
     #

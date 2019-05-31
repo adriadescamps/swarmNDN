@@ -64,7 +64,7 @@ class Consumer(object):
         # It will send 10 ants to form a path and
         # once the first one arrived back in a form of Data packet it will send the Data request
         yield self.env.timeout(self.delay+delay)  # Wait to start requesting packets
-        for i in range(30):
+        for i in range(20):
             yield self.env.timeout(0.1)  # generate packets at fix speed
             pkt = Packet(self.name, self.env.now, random.randint(50, 100), name, self.lifetime, self.id, True)
             self.id += 1
@@ -103,7 +103,7 @@ class Consumer(object):
     def request_chunks(self, data):
         # It will listen for packets in the store to process
         for name, i in zip(data, range(len(data))):
-            for j in range(25):
+            for j in range(5):
                 yield self.env.timeout(0.2)
                 pkt = Packet(self.name, self.env.now, random.randint(50, 100), name, self.lifetime, self.id, True)
                 self.id += 1
