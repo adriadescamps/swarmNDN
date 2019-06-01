@@ -42,6 +42,9 @@ class Packet(object):
         return "name: {}, id: {}, ant: {} time: {}, life: {}, size: {}, mode:{}, creator: {}, data: {}".\
             format(self.name, self.id, self.ant, self.time, self.lifetime, self.size, self.mode, self.creator,  self.data)
 
+    def __lt__(self, other):
+        return self.mode > other.mode or (self.mode == other.mode and self.id < other.id)
+
     def add_data(self, data):
         self.data = data
 
@@ -58,7 +61,7 @@ class Consumer(object):
         self.action = env.process(self.run())  # starts the run() method as a SimPy process
         self.receivedPackets = dict()
         self.wastedPackets = list()
-        self.lifetime = 200
+        self.lifetime = 100
 
     def request(self, name, delay=0):
         # TODO It will generate packets in a specified interval
@@ -67,11 +70,10 @@ class Consumer(object):
         yield self.env.timeout(self.delay+delay)  # Wait to start requesting packets
         if self.mode == 0:  # If using ant routing we send ants to explore
             for i in range(20):
-                yield self.env.timeout(0.1)  # generate packets at fix speed
+                yield self.env.timeout(0.2)  # generate packets at fix speed
                 pkt = Packet(self.name, self.env.now, random.randint(50, 100), name, self.lifetime, self.id, True)
                 self.id += 1
                 self.interface.packets.put(pkt)
-        yield self.env.timeout(0.5)
         data = Packet(self.name, self.env.now, random.randint(1500, 2000), name, self.lifetime, self.id)
         self.id += 1
         self.interface.packets.put(data)
@@ -80,8 +82,8 @@ class Consumer(object):
         # It will listen for packets in the store to process
         while True:
             item = (yield self.store.get())
-            iface = item[0]
-            pkt = item[1][1]
+            iface = item[1][0]
+            pkt = item[0]
             # Might be Interest packets going backwards than need to be moved forward again
             if pkt.mode == 0:
                 # print("...Back to Consumer...")
@@ -105,12 +107,12 @@ class Consumer(object):
     def request_chunks(self, data):
         # It will listen for packets in the store to process
         for name, i in zip(data, range(len(data))):
-            if self.mode == 0:  # If using ant routing we send ants to explore
-                for j in range(5):
-                    yield self.env.timeout(0.2)
-                    pkt = Packet(self.name, self.env.now, random.randint(50, 100), name, self.lifetime, self.id, True)
-                    self.id += 1
-                    self.interface.packets.put(pkt)
+            # if self.mode == 0:  # If using ant routing we send ants to explore
+                # for j in range(5):
+                #     yield self.env.timeout(0.2)
+                #     pkt = Packet(self.name, self.env.now, random.randint(50, 100), name, self.lifetime, self.id, True)
+                #     self.id += 1
+                #     self.interface.packets.put(pkt)
             if i > 2:
                 yield self.env.timeout(3)
             pkt = Packet(self.name, self.env.now, random.randint(1500, 2000), name, self.lifetime, self.id)
@@ -144,8 +146,8 @@ class Producer(object):
         # It will listen for packets in the store to process
         while True:
             item = (yield self.store.get())
-            iface = item[0]
-            pkt = item[1][1]
+            iface = item[1][0]
+            pkt = item[0]
             # It receive an Interest packet and creates the Data packet for it
             if pkt.mode == 0:
                 gen_name = ''  # Initialize a general name from the content
@@ -191,7 +193,7 @@ class Node(object):
         self.pkt_id = random.randrange(9999999)
         self.reduce_const = 0.1  # TODO Assign it properly
         self.pheromone = 1
-        self.store = simpy.Store(env)  # The queue of pkts in the node
+        self.store = simpy.PriorityStore(env)  # The queue of pkts in the node
         self.interfaces = list()
         self.timeout = 1500  # TODO Assign it properly  # It is the time to live in the table
         self.PAT = PAT()
@@ -209,8 +211,8 @@ class Node(object):
             self.env.process(self.prepare())
         while True:
             item = (yield self.store.get())
-            iface = item[0]
-            pkt = item[1][1]
+            iface = item[1][0]
+            pkt = item[0]
 
             if pkt.creator is not self.name:
                 if pkt.mode == 0 and pkt.ant:
@@ -494,14 +496,14 @@ class Interface(object):
         self.out_iface = iface
         self.store = store  # Gonna point to the Node, consumer or producer with iface store
         self.rate = rate
-        self.packets = simpy.Store(env)
+        self.packets = simpy.PriorityStore(env)
         self.action = env.process(self.send())
 
     def add_interface(self, iface):
         self.out_iface = iface
 
     def put(self, pkt):
-        self.store.put([self, pkt])
+        self.store.put(simpy.PriorityItem(pkt, [self, pkt]))
 
     def send(self):
         while True:
@@ -510,7 +512,7 @@ class Interface(object):
                 time = (pkt.size * 8.0) / self.rate
                 yield self.env.timeout(time)  # Packet transmission time
                 pkt.lifetime -= 1
-                self.out_iface.put([self.out_iface, pkt])
+                self.out_iface.put(pkt)
 
     def __repr__(self):
         return "Interface: {}".\

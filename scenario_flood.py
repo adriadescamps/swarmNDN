@@ -118,7 +118,7 @@ if __name__ == '__main__':
             # Create Consumers
             info.write("Consumers:\n")
             consumers = {}
-            for i in range(random.randint(10, 20)):
+            for i in range(random.randint(10, 50)):
                 name = 'C'+str(i)
                 consumers[name] = Consumer(env, name, i*3+20, mode)
                 rand = random.choice(list(nodes.keys()))
@@ -161,7 +161,7 @@ if __name__ == '__main__':
             # Add request for content
             for con in consumers.values():
                 env.process(con.request("Trondheim/video"))
-                # env.process(con.request("Trondheim/audio", 20))
+                env.process(con.request("Trondheim/audio", 20))
 
             # data = []
             # monitor = functools.partial(monitor, data)
@@ -175,42 +175,42 @@ if __name__ == '__main__':
             # data_f.to_csv('data/scenario7/scenario7_data_' + str(simulation) + '.csv')
 
             # # Visualization
-            con_times = {}
-            for name, consumer in consumers.items():
-                con_times[name] = consumer.receivedPackets
-            con_times = {name: consumer.receivedPackets
-                         for name, consumer in consumers.items()
-                         if consumer.receivedPackets}
-            fig_con = plt.figure(figsize=(10, 7))
-            if con_times:
-
-                out_consumer = pd.DataFrame(con_times)
-                plot3 = out_consumer.plot.bar(title="Content access response time", ax=fig_con.add_subplot(111))
-                plot3.set(ylabel="Time")
-                plot3.legend(loc='center left', bbox_to_anchor=(1, 0.5))
-
-            out_pat = pd.DataFrame(monitor_n.pat, index=monitor_n.times)
-            fig_pat = plt.figure()
-            plot = out_pat.plot.line(title="PAT", ax=fig_pat.add_subplot(111))
-            plot.set(ylabel="Max Entries")
-            plot.set(xlabel="Time")
-            plot.legend().remove()
-
-            out_pit = pd.DataFrame(monitor_n.pit, index=monitor_n.times)
-            fig_pit = plt.figure()
-            plot2 = out_pit.plot.line(title="PIT", ax=fig_pit.add_subplot(111))
-            plot2.set(ylabel="Max Entries")
-            plot2.set(xlabel="Time")
-            plot2.legend().remove()
-
-            out_pat.to_csv('data/' + output + '_pat_' + str(simulation) + '.csv')
-            out_pit.to_csv('data/' + output + '_pit_' + str(simulation) + '.csv')
-            if con_times:
-                out_consumer.to_csv('data/' + output + '_times_' + str(simulation) + '.csv')
-
-            fig_pat.savefig('data/' + output + '_pat_' + str(simulation) + ".png")
-            fig_pit.savefig('data/' + output + '_pit_' + str(simulation) + ".png")
-            fig_con.savefig('data/' + output + '_times_' + str(simulation) + ".png")
+            # con_times = {}
+            # for name, consumer in consumers.items():
+            #     con_times[name] = consumer.receivedPackets
+            # con_times = {name: consumer.receivedPackets
+            #              for name, consumer in consumers.items()
+            #              if consumer.receivedPackets}
+            # fig_con = plt.figure(figsize=(10, 7))
+            # if con_times:
+            #
+            #     out_consumer = pd.DataFrame(con_times)
+            #     plot3 = out_consumer.plot.bar(title="Content access response time", ax=fig_con.add_subplot(111))
+            #     plot3.set(ylabel="Time")
+            #     plot3.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+            #
+            # out_pat = pd.DataFrame(monitor_n.pat, index=monitor_n.times)
+            # fig_pat = plt.figure()
+            # plot = out_pat.plot.line(title="PAT", ax=fig_pat.add_subplot(111))
+            # plot.set(ylabel="Max Entries")
+            # plot.set(xlabel="Time")
+            # plot.legend().remove()
+            #
+            # out_pit = pd.DataFrame(monitor_n.pit, index=monitor_n.times)
+            # fig_pit = plt.figure()
+            # plot2 = out_pit.plot.line(title="PIT", ax=fig_pit.add_subplot(111))
+            # plot2.set(ylabel="Max Entries")
+            # plot2.set(xlabel="Time")
+            # plot2.legend().remove()
+            #
+            # out_pat.to_csv('data/' + output + '_pat_' + str(simulation) + '.csv')
+            # out_pit.to_csv('data/' + output + '_pit_' + str(simulation) + '.csv')
+            # if con_times:
+            #     out_consumer.to_csv('data/' + output + '_times_' + str(simulation) + '.csv')
+            #
+            # fig_pat.savefig('data/' + output + '_pat_' + str(simulation) + ".png")
+            # fig_pit.savefig('data/' + output + '_pit_' + str(simulation) + ".png")
+            # fig_con.savefig('data/' + output + '_times_' + str(simulation) + ".png")
             info.close()
             print(str(simulation))
             consum.append(len(consumers))
@@ -220,7 +220,7 @@ if __name__ == '__main__':
         out_hits = pd.DataFrame({'hits': hits[mode], 'waste': waste[mode]}, index=consum)
         out_hits = out_hits.sort_index()
         out_hits.to_csv('data/' + output + '_hits.csv')
-        fig_hits = plt.figure()
+        fig_hits = plt.figure(figsize=[50, 20])
         plot = out_hits.plot.bar(title="Content retrieved", ax=fig_hits.add_subplot(111))
         plot.set(ylabel="Hits")
         plot.set(xlabel="Consumers")
