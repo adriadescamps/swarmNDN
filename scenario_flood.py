@@ -1,4 +1,5 @@
 import functools
+import os
 import random
 import sys
 import time
@@ -100,25 +101,26 @@ if __name__ == '__main__':
     # Mode 0 is Ant routing, mode 1 is flood routing
     consum = []
     hits = {}
+    hits_a = {}
     waste = {}
     for mode in range(2):
         if mode == 0:
-            output = 'scenario6/scenario6'
+            output = 'ant_1000/scenario6'
         else:
-            output = 'scenario7/scenario7'
+            output = 'flood_1000/scenario7'
         consum = []
+        prod = []
         hits[mode] = []
+        hits_a[mode] = []
         waste[mode] = []
-        for simulation in range(20):
+        for simulation in range(10000):
             random.seed(2200+simulation)
             env = simpy.Environment()  # Create the SimPy environment
             nodes = importTopology(env, 'isis-uninett.net', mode)
             # printTopology('isis-uninett.net', nodes)
-            info = open('data/' + output + '_info' + str(simulation) + '.txt', 'w+')
             # Create Consumers
-            info.write("Consumers:\n")
             consumers = {}
-            for i in range(random.randint(10, 50)):
+            for i in range(random.randint(10, 100)):
                 name = 'C'+str(i)
                 consumers[name] = Consumer(env, name, i*3+20, mode)
                 rand = random.choice(list(nodes.keys()))
@@ -127,34 +129,33 @@ if __name__ == '__main__':
                 iface_c.add_interface(iface_n)
                 nodes[rand].add_interface(iface_n)
                 consumers[name].add_interface(iface_c)
-                info.write(name + " - Node:  " + nodes[rand].name + '\n')
 
             # Create Producer
-            info.write("Producers:" + '\n')
             names = ["video", "audio"]
             # Generate a random number of producers (1-5) in a random location
-            # producers = {}
-            # for i in range(random.randint(1, 5)):
-            #     name = 'P'+str(i)
-            #     rand = random.choice(list(nodes.keys()))
-            #     producers[name] = Producer(env, names, name, nodes[rand].area)
-            #     iface_p = Interface(env, name + "-" + nodes[rand].name, producers[name].store)
-            #     iface_n = Interface(env, nodes[rand].name + "-" + name, nodes[rand].store, iface_p)
-            #     iface_p.add_interface(iface_n)
-            #     nodes[rand].add_interface(iface_n)
-            #     producers[name].add_interface(iface_p)
-            #     info.write(name + " - Node:  " + nodes[rand].name)
+            producers = {}
+            for i in range(random.randint(1, 5)):
+                name = 'P'+str(i)
+                rand = random.choice(list(nodes.keys()))
+                while nodes[rand].area != 'Trondheim':
+                    rand = random.choice(list(nodes.keys()))
+                producers[name] = Producer(env, names, name, nodes[rand].area)
+                iface_p = Interface(env, name + "-" + nodes[rand].name, producers[name].store)
+                iface_n = Interface(env, nodes[rand].name + "-" + name, nodes[rand].store, iface_p)
+                iface_p.add_interface(iface_n)
+                nodes[rand].add_interface(iface_n)
+                producers[name].add_interface(iface_p)
 
             # Create static Producer
-            producer = Producer(env, names, "P01", "Trondheim")
-            # 5 - hovedbygget
-            node = nodes['5']
-            iface_p = Interface(env, "P01" + "-" + node.name, producer.store)
-            iface_n = Interface(env, node.name + "-" + "P01", node.store, iface_p)
-            iface_p.add_interface(iface_n)
-            producer.add_interface(iface_p)
-            node.add_interface(iface_n)
-            info.write("P01" + " - Node:  " + nodes['5'].name + '\n')
+            # producer = Producer(env, names, "P01", "Trondheim")
+            # # 5 - hovedbygget
+            # node = nodes['5']
+            # iface_p = Interface(env, "P01" + "-" + node.name, producer.store)
+            # iface_n = Interface(env, node.name + "-" + "P01", node.store, iface_p)
+            # iface_p.add_interface(iface_n)
+            # producer.add_interface(iface_p)
+            # node.add_interface(iface_n)
+            # info.write("P01" + " - Node:  " + nodes['5'].name + '\n')
 
             # Create node monitor
             monitor_n = NodeMonitor(env, nodes)
@@ -174,7 +175,7 @@ if __name__ == '__main__':
             # data_f = pd.DataFrame(data)
             # data_f.to_csv('data/scenario7/scenario7_data_' + str(simulation) + '.csv')
 
-            # # Visualization
+            # Visualization
             # con_times = {}
             # for name, consumer in consumers.items():
             #     con_times[name] = consumer.receivedPackets
@@ -202,39 +203,67 @@ if __name__ == '__main__':
             # plot2.set(ylabel="Max Entries")
             # plot2.set(xlabel="Time")
             # plot2.legend().remove()
-            #
+
             # out_pat.to_csv('data/' + output + '_pat_' + str(simulation) + '.csv')
             # out_pit.to_csv('data/' + output + '_pit_' + str(simulation) + '.csv')
             # if con_times:
             #     out_consumer.to_csv('data/' + output + '_times_' + str(simulation) + '.csv')
-            #
+
             # fig_pat.savefig('data/' + output + '_pat_' + str(simulation) + ".png")
             # fig_pit.savefig('data/' + output + '_pit_' + str(simulation) + ".png")
             # fig_con.savefig('data/' + output + '_times_' + str(simulation) + ".png")
-            info.close()
             print(str(simulation))
             consum.append(len(consumers))
-            hits[mode].append(sum(len(consumer.receivedPackets) for consumer in consumers.values()))
-            waste[mode].append(sum(len(consumer.wastedPackets) for consumer in consumers.values()) + sum(len(node.wastedPackets) for node in nodes.values()))
+            prod.append(len(producers))
+            hit = sum(len(consumer.receivedPackets) for consumer in consumers.values())
+            hits[mode].append(hit)
+            hits_a[mode].append(hit/len(consumers))
+            waste[mode].append(sum(len(consumer.wastedPackets) for consumer in consumers.values()) +
+                               sum(len(node.wastedPackets) for node in nodes.values()) +
+                               sum(len(producer.wasted) for producer in producers.values()))
             # plt.show()
         out_hits = pd.DataFrame({'hits': hits[mode], 'waste': waste[mode]}, index=consum)
+        out_hits_p = pd.DataFrame({'hits': hits[mode], 'waste': waste[mode]}, index=[consum, prod])
+        out_hits_a = pd.DataFrame({'hits': hits_a[mode], 'waste': waste[mode]}, index=[consum, prod])
         out_hits = out_hits.sort_index()
+        out_hits_p = out_hits_p.sort_index()
+        out_hits_a = out_hits_a.sort_index()
         out_hits.to_csv('data/' + output + '_hits.csv')
-        fig_hits = plt.figure(figsize=[50, 20])
+        out_hits_p.to_csv('data/' + output + '_hits_p.csv')
+        out_hits_a.to_csv('data/' + output + '_hits_a.csv')
+        fig_hits = plt.figure(figsize=[30, 20])
         plot = out_hits.plot.bar(title="Content retrieved", ax=fig_hits.add_subplot(111))
         plot.set(ylabel="Hits")
         plot.set(xlabel="Consumers")
         fig_hits.savefig('data/' + output + '_hits.png')
+        fig_hits_p = plt.figure(figsize=[30, 20])
+        plot_p = out_hits_p.plot.bar(title="Content retrieved", ax=fig_hits_p.add_subplot(111))
+        plot_p.set(ylabel="Hits")
+        plot_p.set(xlabel="Consumers, Producers")
+        fig_hits_p.savefig('data/' + output + '_hits_p.png')
+        fig_hits_a = plt.figure(figsize=[30, 20])
+        plot_a = out_hits_a.plot.bar(title="Content retrieved per consumer", ax=fig_hits_a.add_subplot(111))
+        plot_a.set(ylabel="Average Hits")
+        plot_a.set(xlabel="Consumers, Producers")
+        fig_hits_a.savefig('data/' + output + '_hits_a.png')
     out_hit = pd.DataFrame(hits, index=consum)
+    out_hit_a = pd.DataFrame(hits_a, index=consum)
     out_waste = pd.DataFrame(waste, index=consum)
     out_hit.columns = ['Ant routing', 'Flooding']
+    out_hit_a.columns = ['Ant routing', 'Flooding']
     out_waste.columns = ['Ant routing', 'Flooding']
     out_hit = out_hit.sort_index()
+    out_hit_a = out_hit_a.sort_index()
     out_waste = out_waste.sort_index()
-    out_hit.to_csv('data/hits.csv')
-    out_waste.to_csv('data/waste.csv')
-    fig_hits = plt.figure(figsize=[12, 16])
+    out_hit.to_csv('data/hits' + str(time.time())[:8] + '.csv')
+    out_hit_a.to_csv('data/hits_a' + str(time.time())[:8] + '.csv')
+    out_waste.to_csv('data/waste' + str(time.time())[:8] + '.csv')
+    fig_hits = plt.figure(figsize=[30, 20])
+    fig_hits_a = plt.figure(figsize=[30, 20])
     plot_hit = out_hit.plot.bar(title="Content retrieved", ax=fig_hits.add_subplot(211))
+    plot_hit_a = out_hit_a.plot.bar(title="Content retrieved per consumer", ax=fig_hits_a.add_subplot(211))
     plot_waste = out_waste.plot.bar(title="Content wasted", ax=fig_hits.add_subplot(212))
-    fig_hits.savefig('data/hits.png')
+    plot_waste_a = out_waste.plot.bar(title="Content wasted", ax=fig_hits_a.add_subplot(212))
+    fig_hits.savefig('data/hits' + str(time.time())[:8] + '.png')
+    fig_hits_a.savefig('data/hits_a' + str(time.time())[:8] + '.png')
 

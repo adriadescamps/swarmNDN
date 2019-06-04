@@ -131,6 +131,7 @@ class Producer(object):
             self.create_data(_name)
         self.action = env.process(self.listen())
         self.received = []
+        self.wasted = []
 
     def create_data(self, name):
         chunks = dict()
@@ -171,6 +172,7 @@ class Producer(object):
                 # If the content is there the packet is modified to Data, else it is returned as it is
                 iface.packets.put(pkt)
             else:
+                self.wasted.append(pkt.name)
                 print("Error - Producer received Data packet")
 
     def add_interface(self, iface):
