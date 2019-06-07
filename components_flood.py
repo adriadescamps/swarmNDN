@@ -1,3 +1,5 @@
+import copy
+
 import simpy
 import random
 import string
@@ -37,6 +39,7 @@ class Packet(object):
         self.ant = ant
         self.lifetime = lifetime
         self.default_time = lifetime
+        self.trail = []
 
     def __repr__(self):
         return "name: {}, id: {}, ant: {} time: {}, life: {}, size: {}, mode:{}, creator: {}, data: {}".\
@@ -92,12 +95,13 @@ class Consumer(object):
             else:
                 pkt.time = self.env.now - pkt.time
                 if pkt.data is not None:
+                    pkt.trail.append((self.name, self.env.now))
                     if isinstance(pkt.data, list):
                         self.env.process(self.request_chunks(pkt.data))
                     if pkt.name in self.receivedPackets:
-                        self.wastedPackets.append(pkt.name)
+                        self.wastedPackets.append(pkt)
                     else:
-                        self.receivedPackets[pkt.name] = pkt.time
+                        self.receivedPackets[pkt.name] = pkt
 
             # TODO Might use the packet for stadistics and then erase it from memory
 
@@ -108,7 +112,7 @@ class Consumer(object):
         # It will listen for packets in the store to process
         for name, i in zip(data, range(len(data))):
             # if self.mode == 0:  # If using ant routing we send ants to explore
-                # for j in range(5):
+                # for j in range(10):
                 #     yield self.env.timeout(0.2)
                 #     pkt = Packet(self.name, self.env.now, random.randint(50, 100), name, self.lifetime, self.id, True)
                 #     self.id += 1
@@ -123,6 +127,7 @@ class Consumer(object):
 class Producer(object):
     def __init__(self, env, names, name, area):
         self.name = name
+        self.env = env
         self.area = area
         self.interface = None
         self.store = simpy.Store(env)  # The queue of pkts in the internal process
@@ -130,7 +135,7 @@ class Producer(object):
         for _name in names:
             self.create_data(_name)
         self.action = env.process(self.listen())
-        self.received = []
+        self.received = set()
         self.wasted = []
 
     def create_data(self, name):
@@ -158,21 +163,25 @@ class Producer(object):
                 # The content name is the general one
                 if pkt.name in self.data:
                     if not pkt.ant:
-                        self.received.append(pkt)
+                        self.received.add(pkt.name)
                         pkt.add_data(list(self.data[pkt.name].keys()))
+                        pkt.trail.append((self.name, self.env.now))
+                        pkt.creator = self.name
                     pkt.lifetime = pkt.default_time
                     pkt.mode = 1  # Convert the Interest packet in Data packet
                 # The content name is a specific chunk name from one of the contents stored in the Producer
                 elif gen_name in self.data:
                     if not pkt.ant:
-                        self.received.append(pkt)
+                        self.received.add(pkt.name)
                         pkt.add_data(self.data[gen_name][pkt.name])
+                        pkt.trail.append((self.name, self.env.now))
+                        pkt.creator = self.name
                     pkt.lifetime = pkt.default_time
                     pkt.mode = 1  # Convert the Interest packet in Data packet
                 # If the content is there the packet is modified to Data, else it is returned as it is
                 iface.packets.put(pkt)
             else:
-                self.wasted.append(pkt.name)
+                self.wasted.append(pkt)
                 print("Error - Producer received Data packet")
 
     def add_interface(self, iface):
@@ -193,8 +202,8 @@ class Node(object):
                       'Buskerud og Vestfold', 'Volda', 'Telemark', 'Alesund', 'Ostfold', 'Mo', 'Nesna', 'Narvik',
                       'Tromso', 'Harstad', 'Karasjok', 'Kjeller', 'Molde', 'NLH As', 'kristiansand']
         self.pkt_id = random.randrange(9999999)
-        self.reduce_const = 0.1  # TODO Assign it properly
-        self.pheromone = 1
+        self.reduce_const = 0.05  # TODO Assign it properly
+        self.pheromone = 1.5
         self.store = simpy.PriorityStore(env)  # The queue of pkts in the node
         self.interfaces = list()
         self.timeout = 1500  # TODO Assign it properly  # It is the time to live in the table
@@ -202,11 +211,14 @@ class Node(object):
         self.PIT = PIT()
         self.FIB = FIB()
         self.CS = CS()
-        self.CS.table[area] = CSobject(area, None, 0)
+        self.CS.table[area] = CSobject(area, None, 0, self.name)
         self.action = env.process(self.run())  # starts the run() method as a SimPy process
         self.action2 = env.process(self.evaporate())  # starts the run() method as a SimPy process
         self.dist = functools.partial(random.expovariate, 1.0)
         self.wastedPackets = []
+        self. timeouts = set()
+        self.timeoutPackets = []
+        self.interestDrop = []
 
     def run(self):
         if self.mode == 0:
@@ -238,6 +250,8 @@ class Node(object):
                     # Check CS for data objects
                     if pkt.name in self.CS.table:
                         pkt.add_data(self.CS.table[pkt.name].data)  # Add data to the packet
+                        pkt.trail.append((self.name, self.env.now))
+                        pkt.creator = self.CS.table[pkt.name].producer
                         pkt.lifetime = pkt.default_time
                         pkt.mode = 1  # Convert the Interest packet in Data packet
                         self.CS.table[pkt.name].lifetime = self.timeout
@@ -247,24 +261,32 @@ class Node(object):
                             if pkt.id in self.PIT.table[pkt.name].ids:
                                 out_iface = [iface, list(self.PIT.table[pkt.name].incoming.keys())]
                                 while iface in out_iface:
-                                    iface = self.forward_engine(pkt)  # The ForwardEngine decides outgoing interface
+                                    pkt_c = copy.deepcopy(pkt)
+                                    iface = self.forward_engine(pkt_c)  # The ForwardEngine decides outgoing interface
                                 iface.packets.put(pkt)  # The packet is sent to the out iface
                             else:
                                 self.PIT.table[pkt.name].incoming[iface] = self.timeout
+                                self.PIT.table[pkt.name].ids.append(pkt.id)
                         else:
                             # Create entry in the PIT table for the Interest packet
                             self.PIT.table[pkt.name] = PITobject(pkt.name, pkt.id, iface, self.timeout)
                             out_iface = iface
                             while out_iface is iface:
-                                out_iface = self.forward_engine(pkt)  # The ForwardEngine decides outgoing interface
+                                pkt_c = copy.deepcopy(pkt)
+                                out_iface = self.forward_engine(pkt_c)  # The ForwardEngine decides outgoing interface
                             out_iface.packets.put(pkt)  # The packet is sent to the out iface
                     elif self.mode == 1:  # Flood routing
                         if pkt.name in self.PIT.table and pkt.id not in self.PIT.table[pkt.name].ids:
                             self.PIT.table[pkt.name].incoming[iface] = self.timeout
+                            self.PIT.table[pkt.name].ids.append(pkt.id)
                         elif pkt.name not in self.PIT.table:
                             self.PIT.table[pkt.name] = PITobject(pkt.name, pkt.id, iface, self.timeout)
-                            out_iface = iface
-                            [out_iface.packets.put(pkt) for out_iface in self.interfaces if out_iface is not iface]
+                            for out_iface in self.interfaces:
+                                if out_iface is not iface:
+                                    pkt_c = copy.deepcopy(pkt)
+                                    out_iface.packets.put(pkt_c)
+                        else:
+                            self.interestDrop.append(pkt)
                 elif pkt.mode == 1 and pkt.ant:
                     if pkt.id in self.PAT.table:
                         # Create entry in FIB OR UPDATE IT
@@ -300,34 +322,54 @@ class Node(object):
                     if pkt.name in self.CS.table:
                         self.CS.table[pkt.name].lifetime = self.timeout
                     else:
-                        cache = CSobject(pkt.name, pkt.data, self.timeout)
+                        cache = CSobject(pkt.name, pkt.data, self.timeout, pkt.creator)
                         self.CS.table[pkt.name] = cache
 
                     # Remove entry in PIT
                     # Take incoming iface from PIT
                     # Send Data packet back to the incoming interface
                     if pkt.name in self.PIT.table:
+                        pkt.trail.append((self.name, self.env.now))
                         entry = self.PIT.table.pop(pkt.name)  # Retrieve and remove the Interest entry for pkt.name
                         for in_iface, y in entry.incoming.items():  # Loops the interfaces assigned to that name
-                            in_iface.packets.put(pkt)  # sends the pkt further to that interfaces
+                            pkt_c = copy.deepcopy(pkt)
+                            in_iface.packets.put(pkt_c)  # sends the pkt further to that interfaces
                     else:
                         if not pkt.ant:
-                            self.wastedPackets.append(pkt.name)
+                            if pkt.mode == 0:
+                                self.interestDrop.append(pkt)
+                            else:
+                                if pkt.name in self.timeouts:
+                                    self.timeoutPackets.append(pkt)
+                                else:
+                                    self.wastedPackets.append(pkt)
                 else:
                     if not pkt.ant:
-                        self.wastedPackets.append(pkt.name)
+                        if pkt.mode == 0:
+                            self.interestDrop.append(pkt)
+                        else:
+                            if pkt.name in self.timeouts:
+                                self.timeoutPackets.append(pkt)
+                            else:
+                                self.wastedPackets.append(pkt)
             else:
                 if not pkt.ant:
-                    self.wastedPackets.append(pkt.name)
+                    if pkt.mode == 0:
+                        self.interestDrop.append(pkt)
+                    else:
+                        if pkt.name in self.timeouts:
+                            self.timeoutPackets.append(pkt)
+                        else:
+                            self.wastedPackets.append(pkt)
 
     def prepare(self):
         # Prepares the network with area requests so the users will fetch the data much faster
         for area in self.areas:
-            yield self.env.timeout(0.2)  # generate packets at fix speed
-            pkt = Packet(self.name, self.env.now, 10, area, 50, self.pkt_id, True)
-            self.pkt_id += 1
-            iface = random.choice(self.interfaces)
-            iface.packets.put(pkt)
+            yield self.env.timeout(0.01)  # generate packets at fix speed
+            for iface in self.interfaces:
+                pkt = Packet(self.name, self.env.now, 10, area, 50, self.pkt_id, True)
+                self.pkt_id += 1
+                iface.packets.put(pkt)
 
     def add_interface(self, iface):
         if isinstance(iface, list):
@@ -435,6 +477,7 @@ class Node(object):
                     if not pit_object.incoming:
                         llista.append(name)
             for name in llista:
+                self.timeouts.add(name)
                 self.PIT.table.pop(name)
                 # print(str(self.env.now) + str(name) + "was deleted from " + str(self.name))
 
@@ -570,7 +613,8 @@ class PATobject(object):
 
 
 class CSobject(object):
-    def __init__(self, name, data, lifetime):
+    def __init__(self, name, data, lifetime, producer):
         self.name = name
         self.data = data
         self.lifetime = lifetime
+        self.producer = producer
