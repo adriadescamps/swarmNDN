@@ -64,7 +64,9 @@ class Consumer(object):
         self.action = env.process(self.run())  # starts the run() method as a SimPy process
         self.receivedPackets = dict()
         self.wastedPackets = list()
+        self.sentPackets = list()
         self.lifetime = 100
+        self.received = []
 
     def request(self, name, delay=0):
         # TODO It will generate packets in a specified interval
@@ -79,6 +81,8 @@ class Consumer(object):
                 self.interface.packets.put(pkt)
         data = Packet(self.name, self.env.now, random.randint(1500, 2000), name, self.lifetime, self.id)
         self.id += 1
+        pkt_c = copy.deepcopy(data)
+        self.sentPackets.append(pkt_c)
         self.interface.packets.put(data)
 
     def run(self):
@@ -96,12 +100,15 @@ class Consumer(object):
                 pkt.time = self.env.now - pkt.time
                 if pkt.data is not None:
                     pkt.trail.append((self.name, self.env.now))
-                    if isinstance(pkt.data, list):
-                        self.env.process(self.request_chunks(pkt.data))
+                    pkt_c = copy.deepcopy(pkt)
+                    self.received.append(pkt_c)
                     if pkt.name in self.receivedPackets:
-                        self.wastedPackets.append(pkt)
+                        self.wastedPackets.append(pkt_c)
+                    elif isinstance(pkt.data, list):
+                        self.receivedPackets[pkt.name] = pkt_c
+                        self.env.process(self.request_chunks(pkt.data))
                     else:
-                        self.receivedPackets[pkt.name] = pkt
+                        self.receivedPackets[pkt.name] = pkt_c
 
             # TODO Might use the packet for stadistics and then erase it from memory
 
@@ -120,6 +127,7 @@ class Consumer(object):
             if i > 2:
                 yield self.env.timeout(3)
             pkt = Packet(self.name, self.env.now, random.randint(1500, 2000), name, self.lifetime, self.id)
+            self.sentPackets.append(pkt)
             self.id += 1
             self.interface.packets.put(pkt)
 
@@ -216,9 +224,10 @@ class Node(object):
         self.action2 = env.process(self.evaporate())  # starts the run() method as a SimPy process
         self.dist = functools.partial(random.expovariate, 1.0)
         self.wastedPackets = []
-        self. timeouts = set()
+        self.timeouts = dict()
         self.timeoutPackets = []
         self.interestDrop = []
+        self.servedData = []
 
     def run(self):
         if self.mode == 0:
@@ -259,11 +268,17 @@ class Node(object):
                     elif self.mode == 0:  # Ant routing
                         if pkt.name in self.PIT.table:
                             if pkt.id in self.PIT.table[pkt.name].ids:
-                                out_iface = [iface, list(self.PIT.table[pkt.name].incoming.keys())]
-                                while iface in out_iface:
-                                    pkt_c = copy.deepcopy(pkt)
-                                    iface = self.forward_engine(pkt_c)  # The ForwardEngine decides outgoing interface
-                                iface.packets.put(pkt)  # The packet is sent to the out iface
+                                if iface not in self.PIT.table[pkt.name].incoming:
+                                    self.PIT.table[pkt.name].incoming[iface] = self.timeout
+                                out_iface = list(self.PIT.table[pkt.name].incoming.keys())
+                                if iface not in out_iface:
+                                    out_iface.append(iface)
+                                if len(out_iface) < len(self.interfaces):
+                                    while iface in out_iface:
+                                        iface = self.forward_engine(pkt)  # The ForwardEngine decides outgoing interface
+                                    iface.packets.put(pkt)  # The packet is sent to the out iface
+                                else:
+                                    self.interestDrop.append(pkt)
                             else:
                                 self.PIT.table[pkt.name].incoming[iface] = self.timeout
                                 self.PIT.table[pkt.name].ids.append(pkt.id)
@@ -272,13 +287,13 @@ class Node(object):
                             self.PIT.table[pkt.name] = PITobject(pkt.name, pkt.id, iface, self.timeout)
                             out_iface = iface
                             while out_iface is iface:
-                                pkt_c = copy.deepcopy(pkt)
-                                out_iface = self.forward_engine(pkt_c)  # The ForwardEngine decides outgoing interface
+                                out_iface = self.forward_engine(pkt)  # The ForwardEngine decides outgoing interface
                             out_iface.packets.put(pkt)  # The packet is sent to the out iface
                     elif self.mode == 1:  # Flood routing
-                        if pkt.name in self.PIT.table and pkt.id not in self.PIT.table[pkt.name].ids:
+                        if pkt.name in self.PIT.table:
+                            if pkt.id not in self.PIT.table[pkt.name].ids:
+                                self.PIT.table[pkt.name].ids.append(pkt.id)
                             self.PIT.table[pkt.name].incoming[iface] = self.timeout
-                            self.PIT.table[pkt.name].ids.append(pkt.id)
                         elif pkt.name not in self.PIT.table:
                             self.PIT.table[pkt.name] = PITobject(pkt.name, pkt.id, iface, self.timeout)
                             for out_iface in self.interfaces:
@@ -309,7 +324,7 @@ class Node(object):
                 elif pkt.mode == 1 and not pkt.ant:
                     if self.mode == 0:  # Ant routing
                         # Create entry in FIB OR UPDATE IT
-                        pheromone = self.pheromone  # TODO Specify pheromone value
+                        pheromone = self.pheromone
                         # The node has already received a Data packet (ant or content) with that name
                         if pkt.name in self.FIB.table:
                             self.FIB.table[pkt.name].outgoings[iface] += pheromone
@@ -318,7 +333,7 @@ class Node(object):
                             entry = FIBobject(pkt.name, iface, self.interfaces, pheromone)
                             self.FIB.table[pkt.name] = entry
 
-                    # TODO Cache Data if strategy says so
+                    # Cache Data if strategy says so
                     if pkt.name in self.CS.table:
                         self.CS.table[pkt.name].lifetime = self.timeout
                     else:
@@ -331,18 +346,16 @@ class Node(object):
                     if pkt.name in self.PIT.table:
                         pkt.trail.append((self.name, self.env.now))
                         entry = self.PIT.table.pop(pkt.name)  # Retrieve and remove the Interest entry for pkt.name
+                        self.servedData.append(entry)
                         for in_iface, y in entry.incoming.items():  # Loops the interfaces assigned to that name
                             pkt_c = copy.deepcopy(pkt)
                             in_iface.packets.put(pkt_c)  # sends the pkt further to that interfaces
                     else:
                         if not pkt.ant:
-                            if pkt.mode == 0:
-                                self.interestDrop.append(pkt)
+                            if pkt.name in self.timeouts:
+                                self.timeoutPackets.append(pkt)
                             else:
-                                if pkt.name in self.timeouts:
-                                    self.timeoutPackets.append(pkt)
-                                else:
-                                    self.wastedPackets.append(pkt)
+                                self.wastedPackets.append(pkt)
                 else:
                     if not pkt.ant:
                         if pkt.mode == 0:
@@ -352,24 +365,16 @@ class Node(object):
                                 self.timeoutPackets.append(pkt)
                             else:
                                 self.wastedPackets.append(pkt)
-            else:
-                if not pkt.ant:
-                    if pkt.mode == 0:
-                        self.interestDrop.append(pkt)
-                    else:
-                        if pkt.name in self.timeouts:
-                            self.timeoutPackets.append(pkt)
-                        else:
-                            self.wastedPackets.append(pkt)
 
     def prepare(self):
         # Prepares the network with area requests so the users will fetch the data much faster
         for area in self.areas:
-            yield self.env.timeout(0.01)  # generate packets at fix speed
-            for iface in self.interfaces:
-                pkt = Packet(self.name, self.env.now, 10, area, 50, self.pkt_id, True)
-                self.pkt_id += 1
-                iface.packets.put(pkt)
+            if area != self.area:  # Do not send interest for your own area
+                yield self.env.timeout(0.01)  # generate packets at fix speed
+                for iface in self.interfaces:
+                    pkt = Packet(self.name, self.env.now, 10, area, 50, self.pkt_id, True)
+                    self.pkt_id += 1
+                    iface.packets.put(pkt)
 
     def add_interface(self, iface):
         if isinstance(iface, list):
@@ -477,7 +482,7 @@ class Node(object):
                     if not pit_object.incoming:
                         llista.append(name)
             for name in llista:
-                self.timeouts.add(name)
+                self.timeouts[name] = self.PIT.table[name]
                 self.PIT.table.pop(name)
                 # print(str(self.env.now) + str(name) + "was deleted from " + str(self.name))
 
@@ -490,9 +495,10 @@ class NodeMonitor(object):
         self.pit = []
         # self.cs = []
         # self.fib = dict()
+        # self.store = dict()
         self.packets = []
-        # for node in self.nodes:
-        #     self.fib[node.name] = {interface.name: [] for interface in node.interfaces}
+        # for node in self.nodes.values():
+        #     self.store[node.name] = []
         self.times = []
         self.action = env.process(self.run())
 
@@ -513,6 +519,10 @@ class NodeMonitor(object):
                 for entry in node.PIT.table.values():
                     tot_pit += len(entry.incoming)
                 pits[node.name] = tot_pit
+
+                # if len(node.store.items) > 0:
+                #     self.store[node.name].append((len(node.store.items), self.env.now))
+
                 # Save CS info
                 # css[node.name] = list(node.CS.table.keys())
                 # Save FIB info
@@ -536,6 +546,8 @@ class NodeMonitor(object):
 
 class Interface(object):
     def __init__(self, env, name, store, iface=None, rate=1000.0):
+        self.antWaste = []
+        self.contentWaste = []
         self.env = env
         self.name = name
         self.out_iface = iface
@@ -558,6 +570,11 @@ class Interface(object):
                 yield self.env.timeout(time)  # Packet transmission time
                 pkt.lifetime -= 1
                 self.out_iface.put(pkt)
+            else:
+                if pkt.ant is not None:
+                    self.antWaste.append(pkt)
+                else:
+                    self.contentWaste.append(pkt)
 
     def __repr__(self):
         return "Interface: {}".\

@@ -1,3 +1,5 @@
+import copy
+
 import simpy
 import random
 import string
@@ -236,7 +238,8 @@ class Node(object):
                 # Send Data packet back to the incoming interface
                 entry = self.PIT.table.pop(pkt.name)  # Retrieve and remove the Interest entry for pkt.name
                 for in_iface, y in entry.incoming.items():  # Loops the interfaces assigned to that name
-                    in_iface.packets.put(pkt)  # sends the pkt further to that interfaces
+                    pkt_c = copy.deepcopy(pkt)
+                    in_iface.packets.put(pkt_c)  # sends the pkt further to that interfaces
             else:
                 # Drop packet
                 print("Wrong packet\n")

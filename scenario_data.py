@@ -1,3 +1,5 @@
+import functools
+
 import simpy
 from components_data import Consumer, Producer, Node, Interface, NodeMonitor
 import pandas as pd
@@ -13,6 +15,30 @@ import matplotlib.pyplot as plt
     
     SCENARIO 3 for thesis
 """
+
+def trace(env, callback):
+    """Replace the ``step()`` method of *env* with a tracing function
+    that calls *callbacks* with an events time, priority, ID and its
+    instance just before it is processed.
+    """
+    def get_wrapper(env_step, callback):
+        """Generate the wrapper for env.step()."""
+        @functools.wraps(env_step)
+        def tracing_step():
+            """Call *callback* for the next event if one exist before
+            calling ``env.step()``."""
+            if len(env._queue):
+                t, prio, eid, event = env._queue[0]
+                callback(t, prio, eid, event)
+            return env_step()
+        return tracing_step
+    env.step = get_wrapper(env.step, callback)
+
+
+def monitor(data, t, prio, eid, event):
+    if not issubclass(type(event), simpy.events.Timeout):
+        data.append((t, eid, type(event), event.value))
+
 if __name__ == '__main__':
     env = simpy.Environment()  # Create the SimPy environment
     # Create Consumer
@@ -63,12 +89,17 @@ if __name__ == '__main__':
     node5.add_interface([iface13, iface14, iface15])
     producer.add_interface(iface16)
     # Create node monitor
-    monitor = NodeMonitor(env, [node1, node2, node3, node4, node5])
+    monitor_n = NodeMonitor(env, [node1, node2, node3, node4, node5])
     # Add request for content
     consumer1.request("video")
     consumer1.request("audio")
     consumer2.request("video")
     consumer2.request("audio")
+
+    data = []
+    monitor = functools.partial(monitor, data)
+    trace(env, monitor)
+
     # Run it
     env.run(65)
     # print(str(node1.PAT.table))
@@ -86,6 +117,10 @@ if __name__ == '__main__':
     # for pkt in consumer2.receivedPackets:
     #     print(pkt)
 
+    # Save events information to a file
+    data_f = pd.DataFrame(data)
+    data_f.to_csv('data/scenario3_data.csv')
+
     # Visualization
     con1 = []
     con2 = []
@@ -93,28 +128,30 @@ if __name__ == '__main__':
         con1.append(pkt1.time)
         con2.append(pkt2.time)
     out_consumer = pd.DataFrame({consumer1.name: con1, consumer2.name: con2}, index=["video", "audio"])
-    out_pat = pd.DataFrame(monitor.pat, index=monitor.times)
-    out_pit = pd.DataFrame(monitor.pit, index=monitor.times)
-    out_fib = pd.DataFrame(monitor.fib, index=monitor.times)
+    out_pat = pd.DataFrame(monitor_n.pat, index=monitor_n.times)
+    out_pit = pd.DataFrame(monitor_n.pit, index=monitor_n.times)
+    out_fib = pd.DataFrame(monitor_n.fib, index=monitor_n.times)
 
     fig_pat = plt.figure()
-    plot = out_pat.plot.line(title="PAT utilization", ax=fig_pat.add_subplot(111))
+    plot = out_pat.plot.line(title="PAT", ax=fig_pat.add_subplot(111))
+    plot.set(ylabel='Entries', xlabel='Time')
 
     fig_pit = plt.figure()
-    plot2 = out_pit.plot.line(title="PIT utilization", ax=fig_pit.add_subplot(111))
+    plot2 = out_pit.plot.line(title="PIT", ax=fig_pit.add_subplot(111))
+    plot2.set(ylabel='Entries', xlabel='Time')
 
     fig_con = plt.figure()
-    plot3 = out_consumer.plot.bar(title="Data retrieving time", ax=fig_con.add_subplot(111))
-    plot3.set(ylabel="Time")
+    plot3 = out_consumer.plot.bar(title="Content RTT", ax=fig_con.add_subplot(111))
+    plot3.set(ylabel="Time", xlabel='Content name')
 
     i = 510
     fig_v = plt.figure(figsize=[8, 12])
     fig_a = plt.figure(figsize=[8, 12])
-    fig_v.suptitle("Video")
-    fig_a.suptitle("Audio")
-    for name, entry in monitor.fib.items():
+    fig_v.suptitle("Content name: Video", y=0.99, x=0.3)
+    fig_a.suptitle("Content name: Audio", y=0.99, x=0.3)
+    for name, entry in monitor_n.fib.items():
         i += 1
-        data = pd.DataFrame(entry, index=monitor.times)
+        data = pd.DataFrame(entry, index=monitor_n.times)
         video = data['video'].to_frame()
         video = video.dropna()
         video = video['video'].apply(pd.Series)

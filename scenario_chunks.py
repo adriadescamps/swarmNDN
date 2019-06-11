@@ -149,14 +149,16 @@ if __name__ == '__main__':
     out_fib.to_csv('data/scenario4_fib.csv')
 
     fig_pat = plt.figure()
-    plot = out_pat.plot.line(title="PAT entries", ax=fig_pat.add_subplot(111))
+    plot = out_pat.plot.line(title="PAT", ax=fig_pat.add_subplot(111))
+    plot.set(ylabel='Entries', xlabel='Time')
 
     fig_pit = plt.figure()
-    plot2 = out_pit.plot.line(title="PIT entries", ax=fig_pit.add_subplot(111))
+    plot2 = out_pit.plot.line(title="PIT", ax=fig_pit.add_subplot(111))
+    plot2.set(ylabel='Entries', xlabel='Time')
 
     fig_con = plt.figure()
-    plot3 = out_consumer.plot.bar(title="Data retrieving time", ax=fig_con.add_subplot(111))
-    plot3.set(ylabel="Time")
+    plot3 = out_consumer.plot.bar(title="Content RTT", ax=fig_con.add_subplot(111))
+    plot3.set(ylabel="Time", xlabel='Content name')
 
     i = 0
     for node, ifaces in monitor_n.fib.items():

@@ -109,7 +109,7 @@ if __name__ == '__main__':
         # Create Consumers
         info.write("Consumers:\n")
         consumers = {}
-        for i in range(random.randint(10, 20)):
+        for i in range(random.randint(10, 30)):
             name = 'C'+str(i)
             consumers[name] = Consumer(env, name, i*3+20)
             rand = random.choice(list(nodes.keys()))
@@ -152,7 +152,7 @@ if __name__ == '__main__':
         # Add request for content
         for con in consumers.values():
             env.process(con.request("Trondheim/video"))
-            # env.process(con.request("Trondheim/audio", 20))
+            env.process(con.request("Trondheim/audio", 20))
 
         # data = []
         # monitor = functools.partial(monitor, data)
@@ -166,9 +166,9 @@ if __name__ == '__main__':
         # data_f.to_csv('data/priority/scenario6_data_' + str(simulation) + '.csv')
 
         # # Visualization
-        con_times = {}
-        for name, consumer in consumers.items():
-            con_times[name] = consumer.receivedPackets
+        # con_times = {}
+        # for name, consumer in consumers.items():
+        #     con_times[name] = consumer.receivedPackets
         con_times = {name: consumer.receivedPackets
                      for name, consumer in consumers.items()
                      if consumer.receivedPackets}
@@ -177,7 +177,7 @@ if __name__ == '__main__':
 
             out_consumer = pd.DataFrame(con_times)
             plot3 = out_consumer.plot.bar(title="Content access response time", ax=fig_con.add_subplot(111))
-            plot3.set(ylabel="Time")
+            plot3.set(ylabel="Time", xlabel='Content name')
             plot3.legend(loc='center left', bbox_to_anchor=(1, 0.5))
 
         # out_pat = pd.DataFrame(monitor_n.pat, index=monitor_n.times)

@@ -5,6 +5,8 @@ import sys
 import time
 
 import simpy
+from scipy.stats import sem, t
+
 from components_flood import Consumer, Producer, Node, Interface, NodeMonitor
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -111,6 +113,7 @@ if __name__ == '__main__':
     timeouts = {}
     inter = {}
     prod_rec = {}
+    con_send = {}
     total_stretch = {}
     total_times = {}
     for mode in range(2):
@@ -126,9 +129,11 @@ if __name__ == '__main__':
         timeouts[mode] = []
         inter[mode] = []
         prod_rec[mode] = []
+        con_send[mode] = []
         aver_stretch = []
         aver_times = []
-        simulations = 1
+        content_times = []  # List: for each simulation the average time of each name is saved
+        simulations = 20
         for simulation in range(simulations):
             random.seed(2200+simulation)
             env = simpy.Environment()  # Create the SimPy environment
@@ -136,7 +141,7 @@ if __name__ == '__main__':
             graph = printTopology('isis-uninett.net', nodes)
             # Create Consumers
             consumers = {}
-            for i in range(random.randint(10, 50)):
+            for i in range(30):
                 name = 'C'+str(i)
                 consumers[name] = Consumer(env, name, i*3+10, mode)
                 rand = random.choice(list(nodes.keys()))
@@ -151,7 +156,7 @@ if __name__ == '__main__':
             names = ["video", "audio"]
             # Generate a random number of producers (1-5) in a random location
             producers = {}
-            for i in range(random.randint(1, 5)):
+            for i in range(3):
                 name = 'P'+str(i)
                 rand = random.choice(list(nodes.keys()))
                 while nodes[rand].area != 'Trondheim':
@@ -192,7 +197,7 @@ if __name__ == '__main__':
 
             # Save events information to a file
             # data_f = pd.DataFrame(data)
-            # data_f.to_csv('data/scenario7/scenario7_data_' + str(simulation) + '.csv')
+            # data_f.to_csv('data/' + output + '_data_' + str(simulation) + '.csv')
 
             # Visualization
             con_times = {}
@@ -202,69 +207,94 @@ if __name__ == '__main__':
                          for name, consumer in consumers.items()
                          if consumer.receivedPackets}
             fig_con = plt.figure(figsize=(10, 7))
+            cons = {}
             if con_times:
                 cons = {name: {pkt.name: pkt.time for pkt in consumer} for name, consumer in con_times.items()}
                 out_consumer = pd.DataFrame(cons)
                 plot3 = out_consumer.plot.bar(title="Content access response time", ax=fig_con.add_subplot(111))
-                plot3.set(ylabel="Time")
+                plot3.set(ylabel="Time", xlabel='Content name')
                 plot3.legend(loc='center left', bbox_to_anchor=(1, 0.5))
 
-            # out_pat = pd.DataFrame(monitor_n.pat, index=monitor_n.times)
-            # fig_pat = plt.figure()
-            # plot = out_pat.plot.line(title="PAT", ax=fig_pat.add_subplot(111))
-            # plot.set(ylabel="Max Entries")
-            # plot.set(xlabel="Time")
-            # plot.legend().remove()
-            #
-            # out_pit = pd.DataFrame(monitor_n.pit, index=monitor_n.times)
-            # fig_pit = plt.figure()
-            # plot2 = out_pit.plot.line(title="PIT", ax=fig_pit.add_subplot(111))
-            # plot2.set(ylabel="Max Entries")
-            # plot2.set(xlabel="Time")
-            # plot2.legend().remove()
-            #
-            # out_pat.to_csv('data/' + output + '_pat_' + str(simulation) + '.csv')
-            # out_pit.to_csv('data/' + output + '_pit_' + str(simulation) + '.csv')
             if con_times:
                 out_consumer.to_csv('data/' + output + '_times_' + str(simulation) + '.csv')
 
-            # fig_pat.savefig('data/' + output + '_pat_' + str(simulation) + ".png")
-            # fig_pit.savefig('data/' + output + '_pit_' + str(simulation) + ".png")
-            fig_con.savefig('data/' + output + '_times_' + str(simulation) + ".png")
+            fig_con.savefig('data/' + output + '_times_' + str(simulation) + ".png", bbox_inches='tight')
+
             print(str(simulation))
+
+            # amount of consumers per simularion
             consum.append(len(consumers))
+            # Amount of producers per simulation
             prod.append(len(producers))
+            # Content retrieved per consumer
             hit = sum(len(consumer.receivedPackets) for consumer in consumers.values())
+            # Append to higher list
             hits[mode].append(hit)
+            # Append the average of content retrieved
             hits_a[mode].append(hit / len(consumers))
+            # Append the number of wasted packets per simulation
             waste[mode].append(sum(len(consumer.wastedPackets) for consumer in consumers.values()) +
                                sum(len(node.wastedPackets) for node in nodes.values()) +
                                sum(len(producer.wasted) for producer in producers.values()))
+            # Wasted ant packets in the interface
+            ant_iface = sum(len(iface.antWaste) for node in nodes.values() for iface in node.interfaces)
+            # Wasted content packets in the interface
+            cnt_iface = sum(len(iface.contentWaste) for node in nodes.values() for iface in node.interfaces)
+            # Content lost pga. the PIT entry was removed by timeout
             timeouts[mode].append(sum(len(node.timeoutPackets) for node in nodes.values()))
+            # Amount of interest packets lost
             inter[mode].append(sum(len(node.interestDrop) for node in nodes.values()))
-            prod_rec[mode].append(max([len(prod.received) for prod in producers.values()]))
+            # Sum total of different names received by the consumers
+            rec = set()
+            for produ in producers.values():
+                rec = rec.union(produ.received)
+            prod_rec[mode].append(len(rec))
+            # Amount of requests made by the consumers
+            con_send[mode].append(sum([len(con.sentPackets) for con in consumers.values()]))
 
+            # Stretch regarding Shortest Path
             stretch = {}
+            # Time per hop
             times = {}
+            # Times per name
+            times_name = {}
             for con in consumers.values():
                 for pkt in con.receivedPackets.values():
                     if pkt.name not in stretch:
                         stretch[pkt.name] = []
                     if pkt.name not in times:
                         times[pkt.name] = []
+                    if pkt.name not in times_name:
+                        times_name[pkt.name] = []
+                    # Calculate shortest path bw consumer and producer
                     sp = (len(nx.shortest_path(graph, con.name, pkt.creator)) - 1)
+                    # Time per hop
                     times[pkt.name].append(pkt.time / (sp * 2))
+                    # Stretch in hops compared to SP
                     stretch[pkt.name].append((pkt.default_time - pkt.lifetime) / sp)
+                    # Time for pkt name
+                    times_name[pkt.name].append(pkt.time)
 
-            names = {}
-            for con in consumers.values():
-                for pkt in con.receivedPackets.values():
-                    if pkt.name not in names:
-                        names[pkt.name] = 1
-                    else:
-                        names[pkt.name] += 1
-            aver_stretch.append({name: sum(stretch[name]) / len(stretch[name]) for name in stretch.keys()})
-            aver_times.append({name: sum(times[name]) / len(times[name]) for name in times.keys()})
+            # List of names retrieved by consumers
+            # names_n = {}
+            # for con in consumers.values():
+            #     for pkt in con.receivedPackets.values():
+            #         if pkt.name not in names_n:
+            #             names_n[pkt.name] = 1
+            #         else:
+            #             names_n[pkt.name] += 1
+
+            # Average stretch in this simulation
+            aver_stretch.append({name: sum(stretch[name]) / len(stretch[name])
+                                 for name in stretch.keys()})
+
+            # Average time per hope in this simulation
+            aver_times.append({name: sum(times[name]) / len(times[name])
+                               for name in times.keys()})
+
+            # Average time per name
+            content_times.append({name: sum(times_name[name]) / len(times_name[name])
+                                  for name in times_name.keys()})
 
         names = [name for stretch in aver_stretch for name in stretch.keys()]
 
@@ -278,94 +308,145 @@ if __name__ == '__main__':
                                        if name in aver_times[i]) / simulations
                              for name in names}
 
+        # Plot packets: retrieved and wasted
         out_hits = pd.DataFrame({'hits': hits[mode], 'waste': waste[mode], 'timeout': timeouts[mode],
                                  'prodRec': prod_rec[mode], 'interest': inter[mode]}, index=consum)
         out_hits = out_hits.sort_index()
         out_hits.to_csv('data/' + output + '_prova.csv')
         fig = plt.figure(figsize=[12, 8])
         ax = out_hits[['hits', 'waste', 'timeout', 'interest']].plot.bar(title="Content retrieved")
+        ax.set(ylabel="Packets", xlabel='Consumers')
         fig.xticks = 'Consumers'
         fig.yticks = 'Hits'
         plt.xticks(rotation=0)
         ax2 = ax.twinx()
         plot = ax2.plot(ax.get_xticks(), out_hits[['prodRec']], marker='.', markeredgecolor='black')
-        plot[0].get_figure().savefig('data/' + output + '_prova.png')
+        ax2.set_ylabel(r"Names")
+        plot[0].get_figure().savefig('data/' + output + '_prova.png', bbox_inches='tight')
+
+        # Plot content retrieved
         out_hits2 = pd.DataFrame({'hits': hits[mode], 'prodRec': prod_rec[mode]}, index=consum)
         out_hits2 = out_hits2.sort_index()
         out_hits2.to_csv('data/' + output + '_prova2.csv')
+        # Create figure and plot first axis
         fig2 = plt.figure(figsize=[12, 8])
         ax = out_hits2[['hits']].plot.bar(title="Content retrieved")
+        ax.set(ylabel="Packets", xlabel='Consumers')
         fig2.xticks = 'Consumers'
         fig2.yticks = 'Hits'
         plt.xticks(rotation=0)
+        # Create second axis, plot it and save figure
         ax2 = ax.twinx()
         plot = ax2.plot(ax.get_xticks(), out_hits[['prodRec']], marker='.', markeredgecolor='black')
-        plot[0].get_figure().savefig('data/' + output + '_prova2.png')
-        # out_hits = pd.DataFrame({'hits': hits[mode], 'waste': waste[mode], 'timeout': timeouts[mode]}, index=consum)
-        # out_hits_p = pd.DataFrame({'hits': hits[mode], 'waste': waste[mode], 'timeout': timeouts[mode]}, index=[consum, prod])
-        # out_hits_a = pd.DataFrame({'hits': hits_a[mode], 'waste': waste[mode], 'timeout': timeouts[mode]}, index=[consum, prod])
-        # out_prod = pd.DataFrame({'interests': prod_rec}, index=consum)
-        # out_hits = out_hits.sort_index()
-        # out_hits_p = out_hits_p.sort_index()
-        # out_hits_a = out_hits_a.sort_index()
-        # out_prod = out_prod.sort_index()
-        # out_hits.to_csv('data/' + output + '_hits.csv')
-        # out_hits_p.to_csv('data/' + output + '_hits_p.csv')
-        # out_hits_a.to_csv('data/' + output + '_hits_a.csv')
-        # fig_hits = plt.figure()
-        # plot = out_hits.plot.bar(title="Content retrieved", ax=fig_hits.add_subplot(111))
-        # plot_i = out_prod.plot.line(ax=fig_hits.add_subplot(111))
-        # plot.set(ylabel="Hits")
-        # plot.set(xlabel="Consumers")
-        # fig_hits.savefig('data/' + output + '_hits.png')
-        # fig_hits_p = plt.figure()
-        # plot_p = out_hits_p.plot.bar(title="Content retrieved", ax=fig_hits_p.add_subplot(111))
-        # plot_p.set(ylabel="Hits")
-        # plot_p.set(xlabel="Consumers, Producers")
-        # fig_hits_p.savefig('data/' + output + '_hits_p.png')
-        # fig_hits_a = plt.figure()
-        # plot_a = out_hits_a.plot.bar(title="Content retrieved per consumer", ax=fig_hits_a.add_subplot(111))
-        # plot_a.set(ylabel="Average Hits")
-        # plot_a.set(xlabel="Consumers, Producers")
-        # fig_hits_a.savefig('data/' + output + '_hits_a.png')
+        ax2.set_ylabel(r"Names")
+        plot[0].get_figure().savefig('data/' + output + '_prova2.png', bbox_inches='tight')
+
+        # Average and confidence interval
+
+        # content_times -> list of dicts of name times
+        # names -> list of names
+        # Average time bw simulations
+        average_name_time = {name: sum(content_times[i][name]
+                                       for i in range(simulations)
+                                       if name in content_times[i]) /
+                                   len([i
+                                        for i in range(simulations)
+                                        if name in content_times[i]])
+                             for name in names}
+
+        # 95 confidence interval bw simulations
+        confidence = 0.95
+        n = len(names)
+        confidence_name_time = {name: sem([content_times[i][name]
+                                            for i in range(simulations)
+                                            if name in content_times[i]]) * t.ppf((1 + confidence) / 2, n - 1)
+                                 for name in names}
+
+        # Visualize average times with confidence interval
+        # Name times
+        out_name_times = pd.DataFrame.from_dict(average_name_time, orient='index')
+        # out_name_times.columns = ['Times']
+        out_name_times = out_name_times.sort_index()
+        # Confidence interval
+        err_name_times = pd.DataFrame.from_dict(confidence_name_time, orient='index')
+        # err_name_times.columns = ['Confidence interval']
+        err_name_times = err_name_times.sort_index()
+        # Plot data
+        fig_con = plt.figure(figsize=(10, 7))
+        plot3 = out_name_times.plot.bar(yerr=err_name_times, title="Content retrieved", ax=fig_con.add_subplot(111))
+        plot3.set(ylabel="Time", xlabel='Content name')
+        fig_con.savefig('data/' + output + '_confidence.png', bbox_inches='tight')
+
+    # Create dataframes for plotting
+    out_hit = pd.DataFrame(hits, index=consum)
     out_prod = pd.DataFrame(prod_rec, index=consum)
     out_hit_a = pd.DataFrame(hits_a, index=consum)
     out_waste = pd.DataFrame(waste, index=consum)
+
+    # Rename columns
+    out_hit.columns = ['Ant routing', 'Flooding']
     out_prod.columns = ['Ant routing', 'Flooding']
     out_hit_a.columns = ['Ant routing', 'Flooding']
     out_waste.columns = ['Ant routing', 'Flooding']
+
+    # Sort dataframes by index
+    out_hit = out_hit.sort_index()
     out_prod = out_prod.sort_index()
     out_hit_a = out_hit_a.sort_index()
     out_waste = out_waste.sort_index()
-    out_hit_a.to_csv('data/hits_a' + str(time.time())[:8] + '.csv')
-    out_waste.to_csv('data/waste' + str(time.time())[:8] + '.csv')
-    fig_hits = plt.figure()
+
+    # Save data files
+    out_hit.to_csv('data/' + str(time.time())[:8] + 'hits.csv')
+    out_hit_a.to_csv('data/' + str(time.time())[:8] + 'hits_a.csv')
+    out_waste.to_csv('data/' + str(time.time())[:8] + 'waste.csv')
+
+    # Create figures
     fig_hits2 = plt.figure()
     fig_hits_a = plt.figure()
-    plot_hit_a = out_hit_a.plot.bar(title="Content retrieved per consumer", ax=fig_hits_a.add_subplot(211))
-    plt.xticks(rotation=0)
-    plot_hit_a2 = plot_hit_a.twinx()
-    plot_a2 = plot_hit_a2.plot(plot_hit_a.get_xticks(), out_prod, marker='o', linestyle='-.', markeredgecolor='black')
-    plot_waste = out_waste.plot.bar(title="Content wasted", ax=fig_hits.add_subplot(212))
-    plot_waste2 = out_waste.plot.bar(title="Content wasted", ax=fig_hits2.add_subplot(212))
-    plot_waste_a = out_waste.plot.bar(title="Content wasted", ax=fig_hits_a.add_subplot(212))
 
-    fig_hits.savefig('data/' + str(time.time())[:8] + 'hits.png')
+    # Plot first axis of retrieved packets and average
+    ax = out_hit.plot.bar(title="Content retrieved", ax=fig_hits2.add_subplot(211))
+    ax.set(ylabel="Packets")
+    plot_hit_a = out_hit_a.plot.bar(title="Content retrieved per consumer", ax=fig_hits_a.add_subplot(211))
+    plot_hit_a.set(ylabel="Packets")
+    plt.xticks(rotation=0)
+
+    # Plot second axis of retrieved packets and average
+    ax2 = ax.twinx()
+    plot_hit_a2 = plot_hit_a.twinx()
+    plot2 = ax2.plot(ax.get_xticks(), out_prod, marker='o', linestyle='-.', markeredgecolor='black')
+    ax2.set_ylabel(r"Names")
+    plot_a2 = plot_hit_a2.plot(plot_hit_a.get_xticks(), out_prod, marker='o', linestyle='-.', markeredgecolor='black')
+    plot_hit_a2.set_ylabel(r"Names")
+
+    # Plot waste on plot
+    plot_waste2 = out_waste.plot.bar(title="Content wasted", ax=fig_hits2.add_subplot(212))
+    plot_waste2.set(ylabel="Packets", xlabel='Consumers')
+
+    # Plot waste on average plot
+    plot_waste_a = out_waste.plot.bar(title="Content wasted", ax=fig_hits_a.add_subplot(212))
+    plot_waste_a.set(ylabel="Packets", xlabel='Consumers')
+
+    # Save figures
     fig_hits2.savefig('data/' + str(time.time())[:8] + 'hits2.png')
     fig_hits_a.savefig('data/' + str(time.time())[:8] + 'hits_a.png')
 
+    # Plot the ratio between the shortest path and the path used by the forwarding technique
     out_stretch = pd.DataFrame(total_stretch)
     out_stretch.columns = ['Ant routing', 'Flooding']
     out_stretch = out_stretch.sort_index()
     out_stretch.to_csv('data/' + str(time.time())[:8] + 'stretch_.csv')
     fig_str = plt.figure()
-    plot_str = out_stretch.plot.bar(title='Stretch', ax=fig_str.add_subplot(111))
-    fig_str.savefig('data/' + str(time.time())[:8] + 'stretch_.png')
+    plot_str = out_stretch.plot.bar(title='Stretch ratio to Shortest Path', ax=fig_str.add_subplot(111))
+    plot_str.set(ylabel="Path length", xlabel='Content name')
+    fig_str.savefig('data/' + str(time.time())[:8] + 'stretch_.png', bbox_inches='tight')
 
+    # Plot time per hop based on shortest path
     out_times = pd.DataFrame(total_times)
     out_times.columns = ['Ant routing', 'Flooding']
     out_times = out_times.sort_index()
     out_times.to_csv('data/' + str(time.time())[:8] + 'times_.csv')
     fig_tim = plt.figure()
-    plot_tim = out_times.plot.bar(title='Stretch Time', ax=fig_tim.add_subplot(111))
-    fig_tim.savefig('data/' + str(time.time())[:8] + 'times_.png')
+    plot_tim = out_times.plot.bar(title='Stretch Time by Shortest Path', ax=fig_tim.add_subplot(111))
+    plot_tim.set(ylabel="Average time per hop", xlabel='Content name')
+    fig_tim.savefig('data/' + str(time.time())[:8] + 'times_.png', bbox_inches='tight')

@@ -110,9 +110,9 @@ def simulate(llavor):
     env.process(consumer1.request("video"))
     env.process(consumer1.request("audio"))
 
-    # data = []
-    # monitor = functools.partial(monitor_f, data)
-    # trace(env, monitor)
+    data = []
+    monitor_d = functools.partial(monitor_f, data)
+    trace(env, monitor_d)
 
     # Run it
     env.run(300)
@@ -134,8 +134,8 @@ def simulate(llavor):
     #     print(pkt)
 
     # Save events information to a file
-    # data_f = pd.DataFrame(data)
-    # data_f.to_csv('data/scenario5_data.csv')
+    data_f = pd.DataFrame(data)
+    data_f.to_csv('data/scenario5_10data_' + str(time.time())[0:8] + '.csv')
 
     # # Save CS information to a file
     # cs_f = pd.DataFrame(monitor_n.cs, index=monitor_n.times)
@@ -161,7 +161,7 @@ def visualize(pit, pat, pkt, pkt_err, times):
     # out_pit = pd.DataFrame(pit, index=times)
     # out_fib = pd.DataFrame(fib, index=times)
 
-    out_pat.to_csv('data/scenario5_30pat_' + str(time.time())[0:8] + '.csv')
+    out_pat.to_csv('data/scenario5_10pat_' + str(time.time())[0:8] + '.csv')
     # out_pit.to_csv('data/scenario5_pit.csv')
     # out_fib.to_csv('data/scenario5_fib.csv')
 
@@ -174,8 +174,8 @@ def visualize(pit, pat, pkt, pkt_err, times):
     # plot2 = out_pit.plot.line(title="PIT entries", ax=fig_pit.add_subplot(111))
 
     fig_con = plt.figure(figsize=(10, 7))
-    plot3 = out_consumer.plot.bar(yerr=err_consumer, title="Data retrieving time", ax=fig_con.add_subplot(111))
-    plot3.set(ylabel="Time")
+    plot3 = out_consumer.plot.bar(yerr=err_consumer, title="Content RTT", ax=fig_con.add_subplot(111))
+    plot3.set(ylabel="Time", xlabel='Content name')
 
     # i = 0
     # for node, ifaces in fib.items():
@@ -212,9 +212,9 @@ def visualize(pit, pat, pkt, pkt_err, times):
 
     plt.show()
 
-    fig_pat.savefig("data/scenario5_30pat_" + str(time.time())[0:8] + ".png")
+    fig_pat.savefig("data/scenario5_10pat_" + str(time.time())[0:8] + ".png")
     # fig_pit.savefig("data/scenario5_30pit_" + str(time.time())[0:8] + ".png")
-    fig_con.savefig("data/scenario5_30times_" + str(time.time())[0:8] + ".png")
+    fig_con.savefig("data/scenario5_10times_" + str(time.time())[0:8] + ".png")
 
 
 if __name__ == '__main__':

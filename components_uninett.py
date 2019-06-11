@@ -1,3 +1,5 @@
+import copy
+
 import simpy
 import random
 import string
@@ -93,7 +95,8 @@ class Consumer(object):
                     if isinstance(pkt.data, list):
                         self.env.process(self.request_chunks(pkt.data))
                     if pkt.name in self.receivedPackets:
-                        self.receivedPackets[pkt.name].append(pkt.time)
+                        if pkt.time < self.receivedPackets[pkt.name]:
+                            self.receivedPackets[pkt.name] = pkt.time
                     else:
                         self.receivedPackets[pkt.name] = pkt.time
 
@@ -156,6 +159,7 @@ class Producer(object):
                     if not pkt.ant:
                         self.received.append(pkt)
                         pkt.add_data(list(self.data[pkt.name].keys()))
+                        pkt.creator = self.name
                     pkt.lifetime = pkt.default_time
                     pkt.mode = 1  # Convert the Interest packet in Data packet
                 # The content name is a specific chunk name from one of the contents stored in the Producer
@@ -163,6 +167,7 @@ class Producer(object):
                     if not pkt.ant:
                         self.received.append(pkt)
                         pkt.add_data(self.data[gen_name][pkt.name])
+                        pkt.creator = self.name
                     pkt.lifetime = pkt.default_time
                     pkt.mode = 1  # Convert the Interest packet in Data packet
                 # If the content is there the packet is modified to Data, else it is returned as it is
@@ -196,7 +201,7 @@ class Node(object):
         self.PIT = PIT()
         self.FIB = FIB()
         self.CS = CS()
-        self.CS.table[area] = CSobject(area, None, 0)
+        self.CS.table[area] = CSobject(area, None, 0, self.name)
         self.action = env.process(self.run())  # starts the run() method as a SimPy process
         self.action2 = env.process(self.evaporate())  # starts the run() method as a SimPy process
         self.dist = functools.partial(random.expovariate, 1.0)
@@ -230,6 +235,7 @@ class Node(object):
                     # Check CS for data objects
                     if pkt.name in self.CS.table:
                         pkt.add_data(self.CS.table[pkt.name].data)  # Add data to the packet
+                        pkt.creator = self.CS.table[pkt.name].producer
                         pkt.lifetime = pkt.default_time
                         pkt.mode = 1  # Convert the Interest packet in Data packet
                         self.CS.table[pkt.name].lifetime = self.timeout
@@ -237,12 +243,18 @@ class Node(object):
                     else:
                         if pkt.name in self.PIT.table:
                             if pkt.id in self.PIT.table[pkt.name].ids:
-                                out_iface = [iface, list(self.PIT.table[pkt.name].incoming.keys())]
-                                while iface in out_iface:
-                                    iface = self.forward_engine(pkt)  # The ForwardEngine decides outgoing interface
-                                iface.packets.put(pkt)  # The packet is sent to the out iface
+                                if iface not in self.PIT.table[pkt.name].incoming:
+                                    self.PIT.table[pkt.name].incoming[iface] = self.timeout
+                                out_iface = list(self.PIT.table[pkt.name].incoming.keys())
+                                if iface not in out_iface:
+                                    out_iface.append(iface)
+                                if len(out_iface) < len(self.interfaces):
+                                    while iface in out_iface:
+                                        iface = self.forward_engine(pkt)  # The ForwardEngine decides outgoing interface
+                                    iface.packets.put(pkt)  # The packet is sent to the out iface
                             else:
                                 self.PIT.table[pkt.name].incoming[iface] = self.timeout
+                                self.PIT.table[pkt.name].ids.append(pkt.id)
                         else:
                             # Create entry in the PIT table for the Interest packet
                             self.PIT.table[pkt.name] = PITobject(pkt.name, pkt.id, iface, self.timeout)
@@ -280,11 +292,11 @@ class Node(object):
                         entry = FIBobject(pkt.name, iface, self.interfaces, pheromone)
                         self.FIB.table[pkt.name] = entry
 
-                    # TODO Cache Data if strategy says so
+                    # Cache Data if strategy says so
                     if pkt.name in self.CS.table:
                         self.CS.table[pkt.name].lifetime = self.timeout
                     else:
-                        cache = CSobject(pkt.name, pkt.data, self.timeout)
+                        cache = CSobject(pkt.name, pkt.data, self.timeout, pkt.creator)
                         self.CS.table[pkt.name] = cache
 
                     # Remove entry in PIT
@@ -293,18 +305,20 @@ class Node(object):
                     if pkt.name in self.PIT.table:
                         entry = self.PIT.table.pop(pkt.name)  # Retrieve and remove the Interest entry for pkt.name
                         for in_iface, y in entry.incoming.items():  # Loops the interfaces assigned to that name
-                            in_iface.packets.put(pkt)  # sends the pkt further to that interfaces
+                            pkt_c = copy.deepcopy(pkt)
+                            in_iface.packets.put(pkt_c)  # sends the pkt further to that interfaces
                 else:
                     print("Wrong packet")
 
     def prepare(self):
         # Prepares the network with area requests so the users will fetch the data much faster
         for area in self.areas:
-            yield self.env.timeout(0.2)  # generate packets at fix speed
-            pkt = Packet(self.name, self.env.now, 10, area, 50, self.pkt_id, True)
-            self.pkt_id += 1
-            iface = random.choice(self.interfaces)
-            iface.packets.put(pkt)
+            if area != self.area:  # Do not send interest for your own area
+                yield self.env.timeout(0.01)  # generate packets at fix speed
+                for iface in self.interfaces:
+                    pkt = Packet(self.name, self.env.now, 10, area, 50, self.pkt_id, True)
+                    self.pkt_id += 1
+                    iface.packets.put(pkt)
 
     def add_interface(self, iface):
         if isinstance(iface, list):
@@ -548,7 +562,8 @@ class PATobject(object):
 
 
 class CSobject(object):
-    def __init__(self, name, data, lifetime):
+    def __init__(self, name, data, lifetime, producer):
         self.name = name
         self.data = data
         self.lifetime = lifetime
+        self.producer = producer

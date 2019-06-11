@@ -1,3 +1,5 @@
+import copy
+
 import simpy
 import random
 import string
@@ -125,9 +127,7 @@ class Producer(object):
     def create_data(self, name):
         chunks = dict()
         # Create 10 chunks of data from a specific content name
-        chunks_names = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10',
-                        '11', '12', '13', '14', '15', '16', '17', '18', '19', '20',
-                        '21', '22', '23', '24', '25', '26', '27', '28', '29', '30']
+        chunks_names = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10']
         for i in chunks_names:
             chunk_name = str(name) + "/" + i
             # Create some random data of size 10 bits
@@ -275,7 +275,8 @@ class Node(object):
                 # Send Data packet back to the incoming interface
                 entry = self.PIT.table.pop(pkt.name)  # Retrieve and remove the Interest entry for pkt.name
                 for in_iface, y in entry.incoming.items():  # Loops the interfaces assigned to that name
-                    in_iface.packets.put(pkt)  # sends the pkt further to that interfaces
+                    pkt_c = copy.deepcopy(pkt)
+                    in_iface.packets.put(pkt_c)  # sends the pkt further to that interfaces
             else:
                 # Drop packet
                 print("Wrong packet\n")
@@ -397,10 +398,10 @@ class NodeMonitor(object):
         self.pat = []
         self.pit = []
         self.cs = []
-        self.fib = dict()
+        # self.fib = dict()
         self.packets = []
-        for node in self.nodes:
-            self.fib[node.name] = {interface.name: [] for interface in node.interfaces}
+        # for node in self.nodes:
+        #     self.fib[node.name] = {interface.name: [] for interface in node.interfaces}
         self.times = []
         self.action = env.process(self.run())
 
@@ -425,18 +426,18 @@ class NodeMonitor(object):
                 css[node.name] = list(node.CS.table.keys())
                 # Save FIB info
 
-                for iface in node.interfaces:
-                    dict_cont = {entry.name: pheromone
-                                 for entry in node.FIB.table.values()
-                                 for iface2, pheromone in entry.outgoings.items()
-                                 if iface2 is iface}
-
-                    # for entry in node.FIB.table.values():
-                    #     for iface2, pher in entry.outgoings.items():
-                    #         dict_cont[iface2.name] = pher
-                    #     llista[entry.name] = dict_cont
-
-                    self.fib[node.name][iface.name].append(dict_cont)
+                # for iface in node.interfaces:
+                #     dict_cont = {entry.name: pheromone
+                #                  for entry in node.FIB.table.values()
+                #                  for iface2, pheromone in entry.outgoings.items()
+                #                  if iface2 is iface}
+                #
+                #     # for entry in node.FIB.table.values():
+                #     #     for iface2, pher in entry.outgoings.items():
+                #     #         dict_cont[iface2.name] = pher
+                #     #     llista[entry.name] = dict_cont
+                #
+                #     self.fib[node.name][iface.name].append(dict_cont)
             self.pat.append(pats)
             self.pit.append(pits)
             self.cs.append(css)
