@@ -312,7 +312,7 @@ if __name__ == '__main__':
         out_hits = pd.DataFrame({'hits': hits[mode], 'waste': waste[mode], 'timeout': timeouts[mode],
                                  'prodRec': prod_rec[mode], 'interest': inter[mode]}, index=consum)
         out_hits = out_hits.sort_index()
-        out_hits.to_csv('data/' + output + '_prova.csv')
+        out_hits.to_csv('data/' + output + '_content.csv')
         fig = plt.figure(figsize=[12, 8])
         ax = out_hits[['hits', 'waste', 'timeout', 'interest']].plot.bar(title="Content retrieved")
         ax.set(ylabel="Packets", xlabel='Consumers')
@@ -322,24 +322,20 @@ if __name__ == '__main__':
         ax2 = ax.twinx()
         plot = ax2.plot(ax.get_xticks(), out_hits[['prodRec']], marker='.', markeredgecolor='black')
         ax2.set_ylabel(r"Names")
-        plot[0].get_figure().savefig('data/' + output + '_prova.png', bbox_inches='tight')
+        plot[0].get_figure().savefig('data/' + output + '_content.png', bbox_inches='tight')
 
+        # Average content received per consumer
+        a_con = [hits[mode][i] / consum[i] for i in range(simulations)]
         # Plot content retrieved
-        out_hits2 = pd.DataFrame({'hits': hits[mode], 'prodRec': prod_rec[mode]}, index=consum)
+        out_hits2 = pd.DataFrame({'hits': a_con}, index=consum)
         out_hits2 = out_hits2.sort_index()
-        out_hits2.to_csv('data/' + output + '_prova2.csv')
+        out_hits2.to_csv('data/' + output + '_a_content.csv')
         # Create figure and plot first axis
         fig2 = plt.figure(figsize=[12, 8])
-        ax = out_hits2[['hits']].plot.bar(title="Content retrieved")
+        ax = out_hits2.plot.bar(title="Content retrieved per consumer", ax=fig2.add_subplot(111))
         ax.set(ylabel="Packets", xlabel='Consumers')
-        fig2.xticks = 'Consumers'
-        fig2.yticks = 'Hits'
-        plt.xticks(rotation=0)
-        # Create second axis, plot it and save figure
-        ax2 = ax.twinx()
-        plot = ax2.plot(ax.get_xticks(), out_hits[['prodRec']], marker='.', markeredgecolor='black')
-        ax2.set_ylabel(r"Names")
-        plot[0].get_figure().savefig('data/' + output + '_prova2.png', bbox_inches='tight')
+        ax.legend().remove()
+        fig2.savefig('data/' + output + '_a_content.png', bbox_inches='tight')
 
         # Average and confidence interval
 
@@ -373,8 +369,9 @@ if __name__ == '__main__':
         err_name_times = err_name_times.sort_index()
         # Plot data
         fig_con = plt.figure(figsize=(10, 7))
-        plot3 = out_name_times.plot.bar(yerr=err_name_times, title="Content retrieved", ax=fig_con.add_subplot(111))
+        plot3 = out_name_times.plot.bar(yerr=err_name_times, title="Content retrieval time", ax=fig_con.add_subplot(111))
         plot3.set(ylabel="Time", xlabel='Content name')
+        plot3.legend().remove()
         fig_con.savefig('data/' + output + '_confidence.png', bbox_inches='tight')
 
     # Create dataframes for plotting
@@ -407,29 +404,22 @@ if __name__ == '__main__':
     # Plot first axis of retrieved packets and average
     ax = out_hit.plot.bar(title="Content retrieved", ax=fig_hits2.add_subplot(211))
     ax.set(ylabel="Packets")
-    plot_hit_a = out_hit_a.plot.bar(title="Content retrieved per consumer", ax=fig_hits_a.add_subplot(211))
-    plot_hit_a.set(ylabel="Packets")
+    plot_hit_a = out_hit_a.plot.bar(title="Content retrieved per consumer", ax=fig_hits_a.add_subplot(111))
+    plot_hit_a.set(ylabel="Packets", xlabel='Consumers')
     plt.xticks(rotation=0)
 
     # Plot second axis of retrieved packets and average
     ax2 = ax.twinx()
-    plot_hit_a2 = plot_hit_a.twinx()
     plot2 = ax2.plot(ax.get_xticks(), out_prod, marker='o', linestyle='-.', markeredgecolor='black')
     ax2.set_ylabel(r"Names")
-    plot_a2 = plot_hit_a2.plot(plot_hit_a.get_xticks(), out_prod, marker='o', linestyle='-.', markeredgecolor='black')
-    plot_hit_a2.set_ylabel(r"Names")
 
     # Plot waste on plot
     plot_waste2 = out_waste.plot.bar(title="Content wasted", ax=fig_hits2.add_subplot(212))
     plot_waste2.set(ylabel="Packets", xlabel='Consumers')
 
-    # Plot waste on average plot
-    plot_waste_a = out_waste.plot.bar(title="Content wasted", ax=fig_hits_a.add_subplot(212))
-    plot_waste_a.set(ylabel="Packets", xlabel='Consumers')
-
     # Save figures
-    fig_hits2.savefig('data/' + str(time.time())[:8] + 'hits2.png')
-    fig_hits_a.savefig('data/' + str(time.time())[:8] + 'hits_a.png')
+    fig_hits2.savefig('data/' + str(time.time())[:8] + 'hits.png', bbox_inches='tight')
+    fig_hits_a.savefig('data/' + str(time.time())[:8] + 'hits_a.png', bbox_inches='tight')
 
     # Plot the ratio between the shortest path and the path used by the forwarding technique
     out_stretch = pd.DataFrame(total_stretch)
@@ -437,16 +427,16 @@ if __name__ == '__main__':
     out_stretch = out_stretch.sort_index()
     out_stretch.to_csv('data/' + str(time.time())[:8] + 'stretch_.csv')
     fig_str = plt.figure()
-    plot_str = out_stretch.plot.bar(title='Stretch ratio to Shortest Path', ax=fig_str.add_subplot(111))
-    plot_str.set(ylabel="Path length", xlabel='Content name')
+    plot_str = out_stretch.plot.bar(title='Stretch ratio', ax=fig_str.add_subplot(111))
+    plot_str.set(ylabel="SP ratio", xlabel='Content name')
     fig_str.savefig('data/' + str(time.time())[:8] + 'stretch_.png', bbox_inches='tight')
 
     # Plot time per hop based on shortest path
     out_times = pd.DataFrame(total_times)
     out_times.columns = ['Ant routing', 'Flooding']
     out_times = out_times.sort_index()
-    out_times.to_csv('data/' + str(time.time())[:8] + 'times_.csv')
+    out_times.to_csv('data/' + str(time.time())[:8] + 's_times_.csv')
     fig_tim = plt.figure()
-    plot_tim = out_times.plot.bar(title='Stretch Time by Shortest Path', ax=fig_tim.add_subplot(111))
+    plot_tim = out_times.plot.bar(title='Stretch Time', ax=fig_tim.add_subplot(111))
     plot_tim.set(ylabel="Average time per hop", xlabel='Content name')
-    fig_tim.savefig('data/' + str(time.time())[:8] + 'times_.png', bbox_inches='tight')
+    fig_tim.savefig('data/' + str(time.time())[:8] + 's_times_.png', bbox_inches='tight')
