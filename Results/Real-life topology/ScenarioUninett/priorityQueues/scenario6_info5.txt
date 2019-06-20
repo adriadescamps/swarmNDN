@@ -1,0 +1,15 @@
+Consumers:
+C0 - Node:  levanger-gw3
+C1 - Node:  stavanger-gw4
+C2 - Node:  haugesund-gw1
+C3 - Node:  drammen-gw2
+C4 - Node:  porsgrunn-gw3
+C5 - Node:  kristiansund-gw1
+C6 - Node:  harstad-gw
+C7 - Node:  levanger-gw3
+C8 - Node:  gjovik-gw1
+C9 - Node:  elverum-gw3
+C10 - Node:  mo-gw3
+C11 - Node:  alta-gw3
+Producers:
+P01 - Node:  hovedbygget-gw

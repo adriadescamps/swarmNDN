@@ -1,0 +1,13 @@
+Consumers:
+C0 - Node:  kjeller-gw3
+C1 - Node:  borre-gw1
+C2 - Node:  haugesund-gw1
+C3 - Node:  oslo-gw4
+C4 - Node:  kirkenes-gw1
+C5 - Node:  oslo-gw3
+C6 - Node:  teknobyen-gw4
+C7 - Node:  oslo-gw3
+C8 - Node:  alesund-gw1
+C9 - Node:  borre-gw2
+Producers:
+P01 - Node:  hovedbygget-gw

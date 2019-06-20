@@ -75,7 +75,7 @@ class Consumer(object):
         yield self.env.timeout(self.delay+delay)  # Wait to start requesting packets
         if self.mode == 0:  # If using ant routing we send ants to explore
             for i in range(20):
-                yield self.env.timeout(0.2)  # generate packets at fix speed
+                yield self.env.timeout(0.1)  # generate packets at fix speed
                 pkt = Packet(self.name, self.env.now, random.randint(50, 100), name, self.lifetime, self.id, True)
                 self.id += 1
                 self.interface.packets.put(pkt)
@@ -118,12 +118,12 @@ class Consumer(object):
     def request_chunks(self, data):
         # It will listen for packets in the store to process
         for name, i in zip(data, range(len(data))):
-            # if self.mode == 0:  # If using ant routing we send ants to explore
-                # for j in range(10):
-                #     yield self.env.timeout(0.2)
-                #     pkt = Packet(self.name, self.env.now, random.randint(50, 100), name, self.lifetime, self.id, True)
-                #     self.id += 1
-                #     self.interface.packets.put(pkt)
+            if self.mode == 0:  # If using ant routing we send ants to explore
+                for j in range(10):
+                    yield self.env.timeout(0.1)
+                    pkt = Packet(self.name, self.env.now, random.randint(50, 100), name, self.lifetime, self.id, True)
+                    self.id += 1
+                    self.interface.packets.put(pkt)
             if i > 2:
                 yield self.env.timeout(3)
             pkt = Packet(self.name, self.env.now, random.randint(1500, 2000), name, self.lifetime, self.id)
@@ -545,7 +545,7 @@ class NodeMonitor(object):
 
 
 class Interface(object):
-    def __init__(self, env, name, store, iface=None, rate=1000.0):
+    def __init__(self, env, name, store, iface=None, rate=100000000.0):
         self.antWaste = []
         self.contentWaste = []
         self.env = env

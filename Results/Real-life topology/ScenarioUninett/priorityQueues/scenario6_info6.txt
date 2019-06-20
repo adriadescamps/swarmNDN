@@ -1,0 +1,22 @@
+Consumers:
+C0 - Node:  alta-gw1
+C1 - Node:  kautokeino-gw1
+C2 - Node:  stavanger-gw4
+C3 - Node:  oslo-gw7
+C4 - Node:  kongsvinger-gw1
+C5 - Node:  hoytek-gw2
+C6 - Node:  mo-gw4
+C7 - Node:  halden-gw3
+C8 - Node:  stord-gw2
+C9 - Node:  notodden-gw1
+C10 - Node:  bo-gw3
+C11 - Node:  stjordal-gw1
+C12 - Node:  fredrikstad-gw2
+C13 - Node:  halden-gw
+C14 - Node:  namsos-gw1
+C15 - Node:  namsos-gw1
+C16 - Node:  hammerfest-gw1
+C17 - Node:  molde-gw3
+C18 - Node:  svalsat-gw1
+Producers:
+P01 - Node:  hovedbygget-gw

@@ -1,0 +1,19 @@
+Consumers:
+C0 - Node:  elverum-gw1
+C1 - Node:  stord-gw1
+C2 - Node:  bodo-gw
+C3 - Node:  fredrikstad-gw2
+C4 - Node:  stjordal-gw1
+C5 - Node:  bodo-gw
+C6 - Node:  hamar-gw2
+C7 - Node:  teknobyen-gw4
+C8 - Node:  hoytek-gw1
+C9 - Node:  forde-gw2
+C10 - Node:  gjovik-gw2
+C11 - Node:  kautokeino-gw1
+C12 - Node:  hamar-gw2
+C13 - Node:  volda-gw3
+C14 - Node:  teknobyen-gw4
+C15 - Node:  stolav-gw3
+Producers:
+P01 - Node:  hovedbygget-gw

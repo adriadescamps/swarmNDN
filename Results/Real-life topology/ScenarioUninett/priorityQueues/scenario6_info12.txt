@@ -1,0 +1,16 @@
+Consumers:
+C0 - Node:  levanger-gw3
+C1 - Node:  halden-gw
+C2 - Node:  kongsvinger-gw1
+C3 - Node:  bo-gw3
+C4 - Node:  bo-gw2
+C5 - Node:  trd-gw2
+C6 - Node:  fredrikstad-gw3
+C7 - Node:  kjeller-gw3
+C8 - Node:  teknobyen-gw2
+C9 - Node:  veths-gw2
+C10 - Node:  bo-gw2
+C11 - Node:  kristiansand-gw1
+C12 - Node:  rena-gw1
+Producers:
+P01 - Node:  hovedbygget-gw

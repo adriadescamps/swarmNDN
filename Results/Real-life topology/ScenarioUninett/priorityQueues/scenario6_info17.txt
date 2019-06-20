@@ -1,0 +1,21 @@
+Consumers:
+C0 - Node:  teknobyen-gw5
+C1 - Node:  kristiansand-gw2
+C2 - Node:  elverum-gw3
+C3 - Node:  teknobyen-gw2
+C4 - Node:  trd-gw7
+C5 - Node:  namsos-gw1
+C6 - Node:  ifi2-gw2
+C7 - Node:  molde-gw3
+C8 - Node:  rena-gw1
+C9 - Node:  teknobyen-gw4
+C10 - Node:  kongsvinger-gw1
+C11 - Node:  stjordal-gw1
+C12 - Node:  kongsvinger-gw1
+C13 - Node:  stord-gw1
+C14 - Node:  gjovik-gw2
+C15 - Node:  bergen-gw1
+C16 - Node:  steinkjer-gw
+C17 - Node:  tromso-gw4
+Producers:
+P01 - Node:  hovedbygget-gw

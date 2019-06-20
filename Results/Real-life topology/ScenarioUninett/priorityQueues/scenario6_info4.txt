@@ -1,0 +1,21 @@
+Consumers:
+C0 - Node:  molde-gw3
+C1 - Node:  grimstad-gw1
+C2 - Node:  stavanger-gw4
+C3 - Node:  volda-gw3
+C4 - Node:  longyear-gw3
+C5 - Node:  hammerfest-gw1
+C6 - Node:  notodden-gw1
+C7 - Node:  stolav-gw3
+C8 - Node:  tromso-gw3
+C9 - Node:  bo-gw3
+C10 - Node:  alta-gw3
+C11 - Node:  rodbergvn-gw
+C12 - Node:  kristiansand-gw2
+C13 - Node:  gjovik-gw1
+C14 - Node:  veths-gw
+C15 - Node:  sandnessjoen-gw1
+C16 - Node:  hovedbygget-gw1
+C17 - Node:  teknobyen-gw1
+Producers:
+P01 - Node:  hovedbygget-gw

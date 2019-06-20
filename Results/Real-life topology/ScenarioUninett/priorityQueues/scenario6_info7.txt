@@ -1,0 +1,13 @@
+Consumers:
+C0 - Node:  evenstad-gw3
+C1 - Node:  stolav-gw3
+C2 - Node:  kjeller-gw1
+C3 - Node:  hovedbygget-gw
+C4 - Node:  longyear-gw3
+C5 - Node:  steinkjer-gw
+C6 - Node:  karasjok-gw1
+C7 - Node:  kristiansand-gw1
+C8 - Node:  rena-gw2
+C9 - Node:  notodden-gw2
+Producers:
+P01 - Node:  hovedbygget-gw

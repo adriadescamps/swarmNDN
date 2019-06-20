@@ -1,0 +1,17 @@
+Consumers:
+C0 - Node:  as-gw2
+C1 - Node:  ifi2-gw2
+C2 - Node:  hoytek-gw2
+C3 - Node:  stolav-gw4
+C4 - Node:  hamar-gw2
+C5 - Node:  kjeller-gw1
+C6 - Node:  stjordal-gw1
+C7 - Node:  elverum-gw1
+C8 - Node:  hamar-gw2
+C9 - Node:  volda-gw3
+C10 - Node:  harstad-gw
+C11 - Node:  hammerfest-gw1
+C12 - Node:  hamar-gw3
+C13 - Node:  volda-gw1
+Producers:
+P01 - Node:  hovedbygget-gw

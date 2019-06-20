@@ -1,0 +1,19 @@
+Consumers:
+C0 - Node:  hammerfest-gw1
+C1 - Node:  hovedbygget-gw1
+C2 - Node:  forde-gw2
+C3 - Node:  volda-gw1
+C4 - Node:  svalsat-gw1
+C5 - Node:  hoytek-gw1
+C6 - Node:  teknobyen-gw4
+C7 - Node:  halden-gw3
+C8 - Node:  ifi2-gw3
+C9 - Node:  ifi2-gw2
+C10 - Node:  mo-gw3
+C11 - Node:  lillehammer-gw2
+C12 - Node:  borre-gw2
+C13 - Node:  ifi2-gw2
+C14 - Node:  ifi2-gw3
+C15 - Node:  alesund-gw
+Producers:
+P01 - Node:  hovedbygget-gw

@@ -1,0 +1,21 @@
+Consumers:
+C0 - Node:  mo-gw4
+C1 - Node:  tromso-gw
+C2 - Node:  kjeller-gw1
+C3 - Node:  teknobyen-gw5
+C4 - Node:  mo-gw4
+C5 - Node:  ma2-gw
+C6 - Node:  honefoss-gw1
+C7 - Node:  porsgrunn-gw2
+C8 - Node:  oslo-gw1
+C9 - Node:  stolav-gw3
+C10 - Node:  halden-gw
+C11 - Node:  kirkenes-gw1
+C12 - Node:  oslo-gw7
+C13 - Node:  levanger-gw1
+C14 - Node:  rena-gw1
+C15 - Node:  stjordal-gw1
+C16 - Node:  honefoss-gw2
+C17 - Node:  honefoss-gw2
+Producers:
+P01 - Node:  hovedbygget-gw

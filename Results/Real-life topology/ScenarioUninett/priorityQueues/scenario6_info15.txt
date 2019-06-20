@@ -1,0 +1,18 @@
+Consumers:
+C0 - Node:  ifi2-gw3
+C1 - Node:  grimstad-gw1
+C2 - Node:  steinkjer-gw2
+C3 - Node:  elverum-gw3
+C4 - Node:  hovedbygget-gw1
+C5 - Node:  molde-gw
+C6 - Node:  borre-gw1
+C7 - Node:  kongsvinger-gw1
+C8 - Node:  borre-gw2
+C9 - Node:  as-gw2
+C10 - Node:  karasjok-gw1
+C11 - Node:  rodbergvn-gw
+C12 - Node:  steinkjer-gw
+C13 - Node:  lillehammer-gw3
+C14 - Node:  sandnessjoen-gw1
+Producers:
+P01 - Node:  hovedbygget-gw

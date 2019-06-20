@@ -1,0 +1,17 @@
+Consumers:
+C0 - Node:  halden-gw
+C1 - Node:  fredrikstad-gw2
+C2 - Node:  stjordal-gw1
+C3 - Node:  fredrikstad-gw3
+C4 - Node:  bergen-gw1
+C5 - Node:  stolav-gw2
+C6 - Node:  bergen-gw2
+C7 - Node:  kristiansund-gw1
+C8 - Node:  kristiansand-gw1
+C9 - Node:  alesund-gw
+C10 - Node:  oslo-gw1
+C11 - Node:  evenstad-gw3
+C12 - Node:  sandnessjoen-gw1
+C13 - Node:  rodbergvn-gw
+Producers:
+P01 - Node:  hovedbygget-gw

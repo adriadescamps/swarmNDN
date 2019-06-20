@@ -1,0 +1,21 @@
+Consumers:
+C0 - Node:  levanger-gw1
+C1 - Node:  fredrikstad-gw3
+C2 - Node:  mo-gw3
+C3 - Node:  stolav-gw2
+C4 - Node:  bodo-gw
+C5 - Node:  harstad-gw
+C6 - Node:  lillehammer-gw2
+C7 - Node:  rena-gw2
+C8 - Node:  lillehammer-gw3
+C9 - Node:  harstad-gw
+C10 - Node:  bo-gw2
+C11 - Node:  honefoss-gw1
+C12 - Node:  haugesund-gw2
+C13 - Node:  rodbergvn-gw
+C14 - Node:  kristiansund-gw2
+C15 - Node:  larvik-gw
+C16 - Node:  honefoss-gw2
+C17 - Node:  narvik-gw2
+Producers:
+P01 - Node:  hovedbygget-gw

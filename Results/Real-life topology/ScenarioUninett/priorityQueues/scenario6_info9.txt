@@ -1,0 +1,21 @@
+Consumers:
+C0 - Node:  alesund-gw
+C1 - Node:  stolav-gw2
+C2 - Node:  gjovik-gw1
+C3 - Node:  teknobyen-gw5
+C4 - Node:  utsjok-gw1
+C5 - Node:  bo-gw2
+C6 - Node:  levanger-gw1
+C7 - Node:  ifi2-gw2
+C8 - Node:  ifi2-gw2
+C9 - Node:  oslo-gw1
+C10 - Node:  stord-gw2
+C11 - Node:  drammen-gw2
+C12 - Node:  trd-gw2
+C13 - Node:  borre-gw2
+C14 - Node:  molde-gw
+C15 - Node:  stord-gw1
+C16 - Node:  kristiansund-gw1
+C17 - Node:  alta-gw1
+Producers:
+P01 - Node:  hovedbygget-gw

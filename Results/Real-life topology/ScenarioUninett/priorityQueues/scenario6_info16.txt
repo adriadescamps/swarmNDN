@@ -1,0 +1,17 @@
+Consumers:
+C0 - Node:  ifi2-gw3
+C1 - Node:  gjovik-gw1
+C2 - Node:  hovedbygget-gw
+C3 - Node:  harstad-gw1
+C4 - Node:  as-gw2
+C5 - Node:  evenstad-gw3
+C6 - Node:  bergen-gw1
+C7 - Node:  molde-gw
+C8 - Node:  evenstad-gw3
+C9 - Node:  stavanger-gw1
+C10 - Node:  narvik-gw2
+C11 - Node:  tromso-gw4
+C12 - Node:  teknobyen-gw1
+C13 - Node:  lillehammer-gw2
+Producers:
+P01 - Node:  hovedbygget-gw

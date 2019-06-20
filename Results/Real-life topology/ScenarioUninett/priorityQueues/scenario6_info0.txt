@@ -1,0 +1,20 @@
+Consumers:
+C0 - Node:  steinkjer-gw
+C1 - Node:  sandnessjoen-gw1
+C2 - Node:  oslo-gw3
+C3 - Node:  stavanger-gw4
+C4 - Node:  longyear-gw3
+C5 - Node:  harstad-gw
+C6 - Node:  stolav-gw4
+C7 - Node:  trd-gw2
+C8 - Node:  kristiansand-gw2
+C9 - Node:  hammerfest-gw1
+C10 - Node:  steinkjer-gw
+C11 - Node:  elverum-gw3
+C12 - Node:  kjeller-gw3
+C13 - Node:  rodbergvn-gw
+C14 - Node:  kirkenes-gw1
+C15 - Node:  molde-gw3
+C16 - Node:  teknobyen-gw4
+Producers:
+P01 - Node:  hovedbygget-gw

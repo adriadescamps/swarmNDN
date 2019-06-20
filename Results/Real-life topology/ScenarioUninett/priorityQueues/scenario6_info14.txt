@@ -1,0 +1,21 @@
+Consumers:
+C0 - Node:  alesund-gw
+C1 - Node:  kongsberg-gw2
+C2 - Node:  levanger-gw1
+C3 - Node:  kongsberg-gw2
+C4 - Node:  oslo-gw3
+C5 - Node:  narvik-gw1
+C6 - Node:  veths-gw
+C7 - Node:  drammen-gw1
+C8 - Node:  molde-gw
+C9 - Node:  alesund-gw1
+C10 - Node:  veths-gw2
+C11 - Node:  oslo-gw7
+C12 - Node:  halden-gw3
+C13 - Node:  bodo-gw
+C14 - Node:  hoytek-gw1
+C15 - Node:  kirkenes-gw1
+C16 - Node:  forde-gw2
+C17 - Node:  alta-gw3
+Producers:
+P01 - Node:  hovedbygget-gw

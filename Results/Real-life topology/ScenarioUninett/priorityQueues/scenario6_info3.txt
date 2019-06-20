@@ -1,0 +1,16 @@
+Consumers:
+C0 - Node:  pil50-gw
+C1 - Node:  hovedbygget-gw
+C2 - Node:  fredrikstad-gw3
+C3 - Node:  rodbergvn-gw
+C4 - Node:  mo-gw3
+C5 - Node:  oslo-gw3
+C6 - Node:  levanger-gw1
+C7 - Node:  lillehammer-gw3
+C8 - Node:  as-gw2
+C9 - Node:  honefoss-gw1
+C10 - Node:  lillehammer-gw3
+C11 - Node:  trd-gw2
+C12 - Node:  hoytek-gw2
+Producers:
+P01 - Node:  hovedbygget-gw

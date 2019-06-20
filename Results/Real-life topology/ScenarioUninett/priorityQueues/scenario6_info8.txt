@@ -1,0 +1,21 @@
+Consumers:
+C0 - Node:  nesna-gw1
+C1 - Node:  stavanger-gw4
+C2 - Node:  kjeller-gw3
+C3 - Node:  bodo-gw3
+C4 - Node:  evenstad-gw2
+C5 - Node:  molde-gw3
+C6 - Node:  grimstad-gw1
+C7 - Node:  stolav-gw3
+C8 - Node:  bodo-gw3
+C9 - Node:  grimstad-gw1
+C10 - Node:  stord-gw2
+C11 - Node:  honefoss-gw2
+C12 - Node:  rena-gw1
+C13 - Node:  ifi2-gw3
+C14 - Node:  hoytek-gw2
+C15 - Node:  bergen-gw2
+C16 - Node:  teknobyen-gw4
+C17 - Node:  grimstad-gw1
+Producers:
+P01 - Node:  hovedbygget-gw
